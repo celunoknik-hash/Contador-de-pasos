@@ -2,7 +2,7 @@
 
 **Cada paso cuenta. Camina, explora y construye tu mundo.**
 
-Aplicación móvil independiente en español, desarrollada con Expo, React Native y TypeScript. Android es la plataforma inicial. Versión 0.1.0: código de Fase 1 implementado; la validación física y compilación del APK siguen pendientes.
+Aplicación móvil independiente en español, desarrollada con Expo, React Native y TypeScript. Android es la plataforma inicial. Versión 0.1.0: Fase 1 y gamificación local de Fase 2 implementadas; la validación física y compilación del APK siguen pendientes.
 
 ## Implementado
 
@@ -11,10 +11,11 @@ Aplicación móvil independiente en español, desarrollada con Expo, React Nativ
 - Objetivo configurable, porcentaje, distancia y calorías aproximadas.
 - SQLite sin internet, historial y gráfico de siete días. Controles contra lecturas anómalas y duplicados.
 - Perfil local, preferencias persistentes y modo claro/oscuro/sistema.
-- Cinco pestañas y áreas seguras superior/inferior. Explorar y Desafíos explican su fase pendiente; todavía no presentan funcionalidades ficticias.
+- Cinco pestañas y áreas seguras superior/inferior. Explorar explica su fase pendiente.
+- WalkCoins locales, cuatro desafíos verificables, bono de racha, logros e historial de movimientos sin duplicados. Reglas y limitaciones: [docs/PHASE2.md](docs/PHASE2.md).
 - Configuración EAS para APK de pruebas y AAB de producción, y explicación de permisos de Health Connect nativa y sin conexión.
 
-**No implementado todavía:** WalkCoins, desafíos verificables, mapa/GPS, cuentas en el móvil, sincronización, eliminación de cuenta en nube y pagos. La base independiente de Supabase ya tiene seis tablas con RLS y pruebas SQL aprobadas; la app todavía no envía datos a ella. Estado y contrato: [docs/SUPABASE.md](docs/SUPABASE.md).
+**No implementado todavía:** recompensas sobre Health Connect, desafío geográfico, mapa/GPS, cuentas en el móvil, sincronización, eliminación de cuenta en nube y pagos. La base independiente de Supabase ya tiene seis tablas con RLS y pruebas SQL aprobadas; la app todavía no envía datos a ella. Estado y contrato: [docs/SUPABASE.md](docs/SUPABASE.md).
 
 ## Instalar y verificar
 
@@ -74,4 +75,4 @@ Expo Go compatible con este SDK permite una prueba limitada del sensor en primer
 
 El sensor de Expo no es seguimiento en segundo plano. El adaptador Health Connect lee datos existentes al volver a la app; no prueba que otro productor registre pasos con la app cerrada. No se ha comprobado aún cierre forzado, reinicio del teléfono, consumo de batería o precisión en un teléfono físico.
 
-No se utilizan datos falsos ni GPS. Los controles iniciales no equivalen a un antifraude comercial. No hay claves de Supabase ni credenciales empaquetadas. Los datos son locales; cuentas y nube se implementarán en su fase.
+No se utilizan datos falsos ni GPS. Los controles iniciales no equivalen a un antifraude comercial. No hay claves de Supabase ni credenciales empaquetadas. Los datos y monedas son locales; cuentas y nube se implementarán en su fase. El saldo de pruebas no está validado por un servidor. Health Connect no genera recompensas todavía: su agregación actual no distingue registros manuales de automáticos. Conectarlo puede retirar las monedas del día que sustituye.

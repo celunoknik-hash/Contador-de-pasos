@@ -63,3 +63,9 @@ export function consumeSensor(session: SensorSession, cumulative: number, at: nu
   // Discard ambiguous batches across midnight; do not attribute old steps to the new day.
   return { session: next, delta: anomaly || boundary ? 0 : delta, anomaly, boundary };
 }
+
+export function validDayKey(value: string) {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
+  const parsed = new Date(`${value}T12:00:00Z`);
+  return Number.isFinite(parsed.getTime()) && parsed.toISOString().slice(0, 10) === value;
+}

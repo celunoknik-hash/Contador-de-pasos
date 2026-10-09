@@ -10,7 +10,7 @@ export type ActivityModel = ReturnType<typeof useActivity>;
 type Props = { c: Palette; model: ActivityModel };
 export function Home({ c, model }: Props) {
   const steps = model.today?.steps ?? 0;
-  const goal = model.preferences.goal;
+  const goal = model.today?.goal ?? model.preferences.goal;
   const estimate = estimates(steps, model.preferences.strideMeters, model.preferences.weightKg);
   return <>
     <View style={{ gap: 6 }}><Label c={c} muted size={14}>HOLA, {model.preferences.name.toUpperCase()}</Label><Label c={c} bold size={28}>Tu mundo empieza{ '\n' }con un paso.</Label><Label c={c} muted>Cada paso cuenta. Camina a tu ritmo.</Label></View>
@@ -22,10 +22,36 @@ export function Home({ c, model }: Props) {
       <Label c={c} muted size={14}>{model.status}</Label>
       <Label c={c} muted size={13}>{model.preferences.source === 'sensor' ? 'Registro parcial: no incluye pasos dados con la app cerrada o en segundo plano.' : 'Lee los pasos guardados en Health Connect. Si ninguna fuente registra pasos, el total puede permanecer en cero.'}</Label>
       {model.preferences.enabled ? <><Button c={c} secondary title="Pausar contador" onPress={model.pause} />{model.preferences.source === 'health-connect' && <Button c={c} title="Actualizar pasos" onPress={() => void model.refresh()} />}</> : <Button c={c} disabled={model.busy} title={model.busy ? 'Conectando…' : 'Activar sensor del teléfono'} onPress={() => void model.enable('sensor')} />}
+      <Label c={c} muted size={12}>Health Connect reemplaza la fuente del día; puede ajustar los pasos y retirar sus recompensas locales.</Label>
       <Button c={c} disabled={model.busy} secondary title="Conectar Health Connect" onPress={() => void model.enable('health-connect')} />
       {model.today && <Label c={c} muted size={12}>Última lectura: {new Date(model.today.updatedAt).toLocaleTimeString('es-CL', { hour: '2-digit', minute: '2-digit' })} · {model.today.partial ? 'Parcial' : 'Health Connect'}</Label>}
     </Card>
-    <Card c={c}><Label c={c} bold>Tu próxima aventura</Label><Label c={c} muted size={14}>Tu actividad real ya queda guardada. WalkCoins y desafíos aún no están disponibles. Mientras tanto, avanza hacia tu objetivo diario.</Label></Card>
+    <WalletCard c={c} model={model} />
+    <ChallengeCard c={c} challenge={model.challenges[0]} />
+  </>;
+}
+function WalletCard({ c, model }: Props) {
+  const base = model.wallet.movements;
+  return <Card c={c}><View style={{ flexDirection: 'row', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}><Ionicons name="sparkles-outline" size={26} color={c.accent} /><Label c={c} bold size={28}>{number(model.wallet.balance)}</Label><Label c={c} bold>WalkCoins</Label></View>
+    <Label c={c} muted size={13}>Saldo local de pruebas · 100 pasos aceptados = 1 moneda, hasta 200 al día. Los desafíos añaden bonos.</Label>
+    <Label c={c} muted size={12}>Solo virtuales, sin valor monetario ni conversión a dinero. Pendiente de validar el contador en un teléfono real.</Label>
+    {model.today?.source === 'health-connect' && <Label c={c} muted size={13}>Health Connect cuenta para estadísticas. Sus totales aún no generan recompensas; cambiar de fuente retira las monedas locales de ese día.</Label>}
+    {base.length === 0 && <Label c={c} muted size={12}>Camina con el sensor activo para obtener tus primeras monedas.</Label>}
+  </Card>;
+}
+function ChallengeCard({ c, challenge }: { c: Palette; challenge: ActivityModel['challenges'][number] }) {
+  const fraction = Math.min(challenge.progress / challenge.target, 1);
+  return <Card c={c}><View style={{ flexDirection: 'row', justifyContent: 'space-between', gap: 10, flexWrap: 'wrap' }}><Label c={c} bold>{challenge.title}</Label><Label c={c} bold size={14}>+{challenge.reward} WalkCoins</Label></View>
+    <Label c={c} muted size={14}>{challenge.description}</Label>
+    <View accessibilityRole="progressbar" accessibilityValue={{ min: 0, max: challenge.target, now: challenge.progress }} style={{ height: 8, backgroundColor: c.line, borderRadius: 8, overflow: 'hidden' }}><View style={{ height: 8, width: `${fraction * 100}%`, backgroundColor: c.accent }} /></View>
+    <Label c={c} muted size={13}>{number(challenge.progress)} / {number(challenge.target)}{challenge.id === 'three-days' ? ' días' : ' pasos'} · {challenge.completed ? 'Completado · bono registrado' : challenge.eligible ? 'En progreso' : 'Sin recompensa: fuente pendiente de validar'}</Label>
+  </Card>;
+}
+export function Challenges({ c, model }: Props) {
+  return <><Label c={c} bold size={28}>Pequeñas metas,{ '\n' }grandes hábitos.</Label><Label c={c} muted>Los bonos se registran automáticamente, sin tener que reclamarlos. Los retos diarios se renuevan al cambiar de día.</Label>
+    <WalletCard c={c} model={model} />
+    {model.challenges.map(challenge => <ChallengeCard key={challenge.id} c={c} challenge={challenge} />)}
+    <Card c={c}><Label c={c} bold>Explorar un sector</Label><Label c={c} muted size={14}>Este desafío estará disponible cuando se implemente la exploración del mapa. Todavía no solicita ubicación ni concede recompensas.</Label></Card>
   </>;
 }
 export function Progress({ c, model }: Props) {
@@ -42,15 +68,16 @@ export function Progress({ c, model }: Props) {
       </View>)}
     </View><Label c={c} muted size={12}>Las barras vacías pueden indicar días sin registros.</Label></Card>
     <Card c={c}><Label c={c} bold size={26}>{number(total)} pasos</Label><Label c={c} muted>{estimate.kilometers.toFixed(2)} km aproximados acumulados</Label><Label c={c} muted size={13}>{model.days.length} días con registros locales</Label></Card>
+    <Card c={c}><Label c={c} bold>Logros locales</Label>{model.challenges.find(ch => ch.id === 'three-days')?.completed ? <Label c={c}>🏅 Pequeños hábitos: tres objetivos consecutivos.</Label> : <Label c={c} muted size={14}>Cumple tres objetivos diarios consecutivos con el sensor para desbloquear tu primer logro.</Label>}</Card>
+    <Card c={c}><Label c={c} bold>Movimientos de WalkCoins</Label>{model.wallet.movements.length === 0 ? <Label c={c} muted>Sin movimientos todavía.</Label> : model.wallet.movements.map(m => <View key={m.id} style={{ borderTopWidth: 1, borderTopColor: c.line, paddingTop: 10, gap: 3 }}><Label c={c} bold size={14}>{m.delta > 0 ? '+' : ''}{m.delta} · {m.label}</Label><Label c={c} muted size={12}>{m.date ?? 'Logro único'}{m.delta < 0 ? ' · ajuste por cambio de fuente o corrección' : ''}</Label></View>)}<Label c={c} muted size={12}>Últimos 50 movimientos. El saldo incluye todo el historial.</Label></Card>
     <Card c={c}><Label c={c} bold>Historial</Label>{model.days.length === 0 ? <Label c={c} muted>Aún no hay actividad. Activa el contador y comienza a caminar.</Label> : model.days.slice(0, 60).map(day => <View key={day.date} style={{ borderTopWidth: 1, borderTopColor: c.line, paddingTop: 12, gap: 3 }}>
       <View style={{ flexDirection: 'row', justifyContent: 'space-between', gap: 8 }}><Label c={c} bold size={14}>{day.date}</Label><Label c={c} bold>{number(day.steps)}</Label></View><Label c={c} muted size={12}>{day.partial ? 'Sensor · registro parcial' : 'Health Connect'} · meta {number(day.goal)}{day.anomalies > 0 ? ` · ${day.anomalies} lecturas descartadas` : ''}</Label>
     </View>)}</Card>
   </>;
 }
-export function Later({ c, kind }: { c: Palette; kind: 'map' | 'challenges' }) {
-  const isMap = kind === 'map';
-  return <><View style={{ backgroundColor: c.soft, width: 76, height: 76, borderRadius: 24, alignItems: 'center', justifyContent: 'center' }}><Ionicons name={isMap ? 'compass-outline' : 'trophy-outline'} color={c.accent} size={38} /></View>
-    <Label c={c} bold size={28}>{isMap ? 'El mundo te espera.' : 'Un paso, una nueva meta.'}</Label><Card c={c}><Label c={c} bold>{isMap ? 'Exploración · próximamente' : 'Desafíos · próximamente'}</Label><Label c={c} muted>{isMap ? 'La exploración aún no está disponible. Permitirá descubrir sectores durante sesiones de caminata voluntarias.' : 'Los desafíos se implementarán con condiciones verificables y recompensas sin duplicados. Por ahora, puedes cumplir tu objetivo personal desde Inicio.'}</Label><Label c={c} muted size={13}>{isMap ? 'No solicitamos tu ubicación ni registramos recorridos.' : 'Aún no se emiten WalkCoins. Son una moneda virtual sin valor monetario.'}</Label></Card></>;
+export function Later({ c }: { c: Palette; kind: 'map' }) {
+  return <><View style={{ backgroundColor: c.soft, width: 76, height: 76, borderRadius: 24, alignItems: 'center', justifyContent: 'center' }}><Ionicons name="compass-outline" color={c.accent} size={38} /></View>
+    <Label c={c} bold size={28}>El mundo te espera.</Label><Card c={c}><Label c={c} bold>Exploración · próximamente</Label><Label c={c} muted>La exploración aún no está disponible. Permitirá descubrir sectores durante sesiones de caminata voluntarias.</Label><Label c={c} muted size={13}>No solicitamos tu ubicación ni registramos recorridos.</Label></Card></>;
 }
 export function Profile({ c, model }: Props) {
   const p = model.preferences;
@@ -70,13 +97,13 @@ export function Profile({ c, model }: Props) {
   const field = (label: string, value: string, change: (s: string) => void, numeric = false) => <View style={{ gap: 6 }}><Label c={c} size={14} bold>{label}</Label><TextInput accessibilityLabel={label} value={value} onChangeText={change} maxLength={numeric ? 8 : 30} keyboardType={numeric ? 'decimal-pad' : 'default'} placeholderTextColor={c.muted} style={{ borderWidth: 1, borderColor: c.line, padding: 14, borderRadius: 13, fontSize: 16, color: c.text, minHeight: 48 }} /></View>;
   return <>
     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 14 }}><View style={{ width: 62, height: 62, borderRadius: 24, backgroundColor: c.soft, alignItems: 'center', justifyContent: 'center' }}><Ionicons name="person-outline" size={30} color={c.accent} /></View><View style={{ flex: 1 }}><Label c={c} bold size={24}>{p.name}</Label><Label c={c} muted size={13}>Perfil en este teléfono</Label></View></View>
-    <Card c={c}><Label c={c} bold>Tu ritmo</Label>{field('Nombre', name, setName)}{field('Objetivo diario (pasos)', goal, setGoal, true)}{field('Longitud de paso estimada (m)', stride, setStride, true)}{field('Peso para estimar calorías (kg)', weight, setWeight, true)}<Label c={c} muted size={12}>Distancia y calorías son aproximaciones. Puedes mantener los valores iniciales. Cambiar estos valores recalcula las estimaciones del historial.</Label><Button c={c} title="Guardar preferencias" onPress={save} /></Card>
+    <Card c={c}><Label c={c} bold>Tu ritmo</Label>{field('Nombre', name, setName)}{field('Objetivo diario (pasos)', goal, setGoal, true)}{field('Longitud de paso estimada (m)', stride, setStride, true)}{field('Peso para estimar calorías (kg)', weight, setWeight, true)}<Label c={c} muted size={12}>Distancia y calorías son aproximaciones. Puedes mantener los valores iniciales. Cambiar estas estimaciones recalcula el historial. Si hoy ya hay registros, su meta se conserva y el nuevo objetivo se aplica al próximo día.</Label><Button c={c} title="Guardar preferencias" onPress={save} /></Card>
     <Card c={c}><Label c={c} bold>Apariencia</Label><View style={{ gap: 8 }}>{([['system', 'Según el teléfono'], ['light', 'Claro'], ['dark', 'Oscuro']] as const).map(([value, title]) => <Pressable key={value} accessibilityRole="radio" accessibilityState={{ checked: p.theme === value }} onPress={() => { try { model.save({ ...p, theme: value }); } catch { Alert.alert('Error', 'No se pudo guardar la apariencia.'); } }} style={{ minHeight: 48, padding: 13, backgroundColor: p.theme === value ? c.soft : c.card, borderWidth: 1, borderColor: c.line, borderRadius: 12, flexDirection: 'row', gap: 10 }}><Ionicons name={p.theme === value ? 'radio-button-on' : 'radio-button-off'} size={22} color={c.accent} /><Label c={c} size={15}>{title}</Label></Pressable>)}</View></Card>
     <Card c={c}><Label c={c} bold>Datos y permisos</Label><Label c={c} muted size={14}>Fuente: {p.source === 'sensor' ? 'sensor con app abierta' : 'Health Connect'}. {p.enabled ? 'Habilitada.' : 'Pausada.'}</Label><Button c={c} disabled={model.busy} title="Usar sensor del teléfono" onPress={() => void model.enable('sensor')} /><Button c={c} secondary disabled={model.busy} title="Conectar Health Connect" onPress={() => void model.enable('health-connect')} />
       {p.source === 'health-connect' && <Button c={c} secondary title="Gestionar permisos de Health Connect" onPress={() => void healthSettings().catch(e => Alert.alert('Health Connect', String(e.message)))} />}
       <Button c={c} secondary title="Abrir permisos de Android" onPress={() => void Linking.openSettings().catch(() => Alert.alert('Ajustes', 'Abre Ajustes → Aplicaciones → WalkWorld.'))} />
       <Button c={c} secondary title={showPrivacy ? 'Cerrar información de privacidad' : 'Privacidad y uso de datos'} onPress={() => setShowPrivacy(!showPrivacy)} />
-      {showPrivacy && <Label c={c} muted size={14}>Esta fase guarda pasos, objetivos y preferencias solo en el teléfono. No los envía a Supabase. Health Connect requiere solo lectura de pasos; WalkWorld no escribe actividad. No se usa GPS ni se solicitan contactos. Pausar detiene las lecturas de WalkWorld; puedes revocar sus permisos en Android. Las cuentas y la sincronización en la nube aún no están disponibles.</Label>}
+      {showPrivacy && <Label c={c} muted size={14}>Esta fase guarda pasos, objetivos, preferencias y recompensas locales solo en el teléfono. No los envía a Supabase. Health Connect requiere solo lectura de pasos; WalkWorld no escribe actividad. No se usa GPS ni se solicitan contactos. Pausar detiene las lecturas de WalkWorld; puedes revocar sus permisos en Android. Las cuentas y la sincronización en la nube aún no están disponibles.</Label>}
     </Card>
   </>;
 }

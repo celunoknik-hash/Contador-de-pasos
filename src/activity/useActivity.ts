@@ -3,11 +3,13 @@ import { AppState, Platform } from 'react-native';
 import { Pedometer } from 'expo-sensors';
 import { ActivityRepository } from '../data/local';
 import { ActivityDay, consumeSensor, dayKey, Preferences, recentDays, SensorSession } from '../domain/activity';
+import { challengesFor } from '../domain/rewards';
 import { connectHealth, healthTotal } from './healthConnect';
 
 export function useActivity(repo: ActivityRepository) {
   const [preferences, setPreferences] = useState(repo.preferences);
   const [days, setDays] = useState(repo.list);
+  const [wallet, setWallet] = useState(repo.wallet);
   const [todayKey, setTodayKey] = useState(dayKey);
   const [status, setStatus] = useState(preferences.source === 'health-connect' ? 'Consultando pasos de Health Connect…' : 'Conectando sensor del teléfono…');
   const [error, setError] = useState<string | null>(null);
@@ -19,7 +21,7 @@ export function useActivity(repo: ActivityRepository) {
   const settings = useRef(preferences);
   const alive = useRef(true);
   useEffect(() => { alive.current = true; return () => { alive.current = false; watcher.current?.remove(); }; }, []);
-  const reload = useCallback(() => { if (alive.current) { setDays(repo.list()); setTodayKey(dayKey()); } }, [repo]);
+  const reload = useCallback(() => { if (alive.current) { setDays(repo.list()); setWallet(repo.wallet()); setTodayKey(dayKey()); } }, [repo]);
   const save = useCallback((next: Preferences) => {
     repo.savePreferences(next); settings.current = next; setPreferences(next);
   }, [repo]);
@@ -103,7 +105,7 @@ export function useActivity(repo: ActivityRepository) {
     finally { actionBusy.current = false; setBusy(false); }
   };
   const today: ActivityDay | undefined = days.find(day => day.date === todayKey);
-  return { preferences, days, today, todayKey, status: preferences.enabled ? status : 'Contador pausado. Actívalo para comenzar; tus datos permanecen guardados.', error, busy, save, enable,
+  return { preferences, days, today, todayKey, wallet, challenges: challengesFor(days, todayKey, preferences.goal), status: preferences.enabled ? status : 'Contador pausado. Actívalo para comenzar; tus datos permanecen guardados.', error, busy, save, enable,
     pause: () => {
       watcher.current?.remove(); watcher.current = null;
       try { save({ ...settings.current, enabled: false }); }

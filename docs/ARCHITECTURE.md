@@ -1,12 +1,12 @@
 # WalkWorld — Arquitectura y decisiones
 
-Versión 0.1.0. Alcance entregado: Fase 1. Android inicial. Aplicación móvil real, sin datos de demostración en producción.
+Versión 0.1.0. Alcance entregado: Fase 1 y Fase 2 local. Android inicial. Aplicación móvil real, sin datos de demostración en producción.
 
 ## Capas
 
 | Capa | Módulos | Responsabilidad |
 |---|---|---|
-| Dominio | `src/domain/activity.ts` | Días locales, estimaciones, validaciones y consumo de eventos acumulativos |
+| Dominio | `src/domain/activity.ts`, `rewards.ts` | Días locales, estimaciones, validaciones, consumo de eventos acumulativos y derechos de recompensas |
 | Fuentes | `src/activity/healthConnect.ts`, `useActivity.ts` | Permisos, lectura agregada de Health Connect, suscripción real al sensor y ciclo de vida |
 | Persistencia | `src/data/repository.ts`, `local.ts` | Interfaz reemplazable; SQLite, transacciones, conciliación de instantáneas |
 | Presentación | `src/ui/`, `src/app/` | Expo Router, cinco pestañas, anillo animado, estadísticas, preferencias, modo oscuro, áreas seguras |
@@ -45,11 +45,11 @@ No se implementa aún un servicio Android permanente. Si las pruebas en teléfon
 
 ### Estadísticas
 
-Distancia = pasos × longitud de paso. Calorías = km × peso × 0,5. Son estimaciones simples configurables, no mediciones médicas. Cambiar peso/longitud recalcula las estimaciones mostradas; los pasos originales permanecen intactos. El historial indica cuándo un registro es parcial. La meta del día de historial se captura con su actividad; la meta actual de Inicio puede cambiar.
+Distancia = pasos × longitud de paso. Calorías = km × peso × 0,5. Son estimaciones simples configurables, no mediciones médicas. Cambiar peso/longitud recalcula las estimaciones mostradas; los pasos originales permanecen intactos. El historial indica cuándo un registro es parcial. La meta del día de historial se captura con su actividad; la meta de Inicio conserva el objetivo guardado al comenzar el día; los cambios de preferencias se aplican a un día sin registros.
 
 ## Ampliación por fases
 
-Fase 2: módulo de recompensas con ledger, saldo derivado, límite diario y condiciones de desafíos. No se otorgan WalkCoins en esta fase, porque los agregados de Health Connect todavía no se auditan por procedencia/manualidad. Fase 3: cuadrícula geográfica, sesiones voluntarias de GPS y comprobaciones de desplazamiento junto con pasos; guardar celdas descubiertas, evitar recorridos crudos por defecto. Se evaluará `react-native-maps` compatible con Expo y una clave restringida al paquete/certificado Android.
+Fase 2 implementada localmente: ledger, saldo derivado, máximo de 200 monedas base/día más bonos, tres retos diarios y un logro por racha. Pasos y monedas se confirman en una transacción; las correcciones generan movimientos de ajuste. Solo el sensor es elegible: los agregados de Health Connect todavía no se auditan por procedencia/manualidad. Ver `docs/PHASE2.md`. Fase 3: cuadrícula geográfica, sesiones voluntarias de GPS y comprobaciones de desplazamiento junto con pasos; guardar celdas descubiertas, evitar recorridos crudos por defecto. Se evaluará `react-native-maps` compatible con Expo y una clave restringida al paquete/certificado Android.
 
 Fase 4: autenticación Supabase y sincronización. Tokens en SecureStore; almacenamiento separado por usuario para impedir que los datos de una cuenta aparezcan en otra. La importación del historial de invitado debe ser explícita. Conservar estas filas locales no constituye una cola de sincronización ya implementada.
 
