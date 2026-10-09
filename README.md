@@ -14,7 +14,7 @@ Aplicación móvil independiente en español, desarrollada con Expo, React Nativ
 - Cinco pestañas y áreas seguras superior/inferior. Explorar y Desafíos explican su fase pendiente; todavía no presentan funcionalidades ficticias.
 - Configuración EAS para APK de pruebas y AAB de producción, y explicación de permisos de Health Connect nativa y sin conexión.
 
-**No implementado todavía:** WalkCoins, desafíos verificables, mapa/GPS, cuentas, Supabase activo, sincronización, eliminación de cuenta en nube y pagos. El diseño de Supabase está en `docs/SUPABASE.md`; no se usó ni modificó la base de Gestión Negocio.
+**No implementado todavía:** WalkCoins, desafíos verificables, mapa/GPS, cuentas en el móvil, sincronización, eliminación de cuenta en nube y pagos. La base independiente de Supabase ya tiene seis tablas con RLS y pruebas SQL aprobadas; la app todavía no envía datos a ella. Estado y contrato: [docs/SUPABASE.md](docs/SUPABASE.md).
 
 ## Instalar y verificar
 

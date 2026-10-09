@@ -1,10 +1,51 @@
-# Supabase — diseño de Fase 4
+# Supabase — base desplegada y trabajo de Fase 4
 
-Estado: no se creó una base de datos de WalkWorld en esta entrega. Se pudo consultar la organización disponible, pero la operación para consultar el costo de creación no está expuesta por el servicio conectado. No se modificó el proyecto existente de Gestión Negocio. Fase 1 funciona sin Supabase.
+Proyecto independiente **WalkWorld**, activo en São Paulo (`sa-east-1`).
 
-Crear un proyecto independiente `WalkWorld`, preferentemente en São Paulo para usuarios en Chile, después de elegir organización y confirmar el costo que indique Supabase. No se debe inferir que habrá cupo gratuito disponible. No incluir la clave secreta/service-role en la aplicación.
+- Referencia: `rfrcmvoziarfruarjrcc`.
+- API: `https://rfrcmvoziarfruarjrcc.supabase.co`.
+- Dashboard: https://supabase.com/dashboard/project/rfrcmvoziarfruarjrcc
+- Migración remota y local: `20261009225930_walkworld_core`.
+- Tipos generados de la base desplegada: `src/data/database.types.ts`.
 
-## Esquema previsto
+La conexión administrativa con Supabase funciona. **La aplicación móvil todavía funciona solo con SQLite: no tiene login ni sincronización activados.** No se empaquetaron claves ni se modificó Gestión Negocio.
+
+## Tablas realmente desplegadas
+
+| Tabla | Acceso de una cuenta autenticada |
+|---|---|
+| profiles | Leer, crear y actualizar exclusivamente su perfil |
+| preferences | Leer, crear y actualizar exclusivamente sus preferencias |
+| devices | Leer exclusivamente sus dispositivos; registro reservado al servidor |
+| step_submissions | Leer sus envíos; escrituras reservadas al servidor |
+| daily_steps | Leer sus totales; escrituras reservadas al servidor |
+| coin_ledger | Leer sus movimientos; escrituras reservadas al servidor |
+
+RLS activo en las seis tablas, con ownership por `auth.uid()`. Sin privilegios para `anon`. Perfiles y preferencias tienen políticas INSERT y UPDATE con comprobación de propietario. Ninguna tabla permite DELETE desde el cliente: la eliminación de la cuenta deberá realizarse mediante un endpoint autenticado con revocación de sesiones y limpieza local. Las claves foráneas eliminan los datos relacionados al borrar el usuario.
+
+Claves únicas para eventos/revisiones de pasos y movimientos de monedas. Estas restricciones previenen duplicados de identidad; **todavía no existe el servicio que valide pasos o conceda monedas**. No hay saldo editable por el cliente ni escrituras directas del móvil sobre pasos canónicos, dispositivos o recompensas. La base admite correcciones de instantáneas, pero su reconciliación debe implementarse en el endpoint antes de habilitar sincronización.
+
+## Verificación realizada
+
+`supabase/tests/access.sql` se ejecutó completo en la base remota. Usa dos identidades temporales dentro de una transacción que termina con ROLLBACK; no deja usuarios, pasos o monedas de prueba guardados.
+
+Comprobó: lectura privada en las seis tablas, acceso denegado a invitados, creación/edición del perfil propio, bloqueo de lectura/edición/inserción sobre otra cuenta, bloqueo de reasignación de propietario, validación del objetivo, ausencia de permisos de escritura de actividad/recompensas y rechazo de un movimiento duplicado. Resultado: PASS. Después se verificó que las seis tablas siguen vacías.
+
+Advisors de seguridad: sin incidencias. Rendimiento: dos avisos informativos de índices todavía no usados, esperado en una base vacía; se conservan para claves foráneas y consultas del historial. Referencia: https://supabase.com/docs/guides/database/database-linter?lint=0005_unused_index
+
+El archivo de migración fue creado con `supabase migration new walkworld_core` y alineado después con la versión asignada por la migración remota. No volver a ejecutar su CREATE TABLE sobre la base existente. Para reproducir en una base vacía, aplicar la migración una vez. Ejecutar las pruebas completas en una sesión con permisos administrativos; no ejecutar fragmentos ni añadir estas identidades a la aplicación.
+
+## Pendiente para conectar el móvil
+
+1. Cliente Supabase tipado y clave publishable, con sesión en SecureStore. Nunca service-role o claves secretas en Expo.
+2. Registro, confirmación de correo, login, recuperación de acceso y cierre de sesión con manejo de errores.
+3. Bases locales separadas por usuario, manteniendo invitado sin conexión. Importar datos de invitado únicamente por acción explícita; no transferir silenciosamente los datos entre cuentas.
+4. Outbox local transaccional, endpoint autenticado, validación de fuente/revisión, reintentos y confirmación del servidor. No sumar dispositivos ni fuentes superpuestas.
+5. Endpoint de eliminación y revocación de sesiones, más pruebas de Auth/REST con dos usuarios reales y validación Android. Las pruebas SQL no equivalen a estas pruebas de extremo a extremo.
+
+La configuración necesaria del proyecto ya está disponible mediante la conexión autorizada; no es necesario compartir contraseñas ni claves privadas en el chat. No activar funciones de nube hasta completar estos puntos.
+
+## Contrato previsto para las siguientes fases
 
 | Tabla | Clave/identidad | Escritura prevista |
 |---|---|---|
@@ -34,6 +75,3 @@ Saldo: derivado del ledger, o caché mantenida en la misma transacción. Nunca p
 - Endpoint de eliminación autenticado, revocación de sesiones, borrado de filas mediante cascadas y limpieza de datos locales de la cuenta. Definir tratamiento de auditorías y retención antes de publicación.
 - SecureStore para sesiones; cliente con clave publishable. Secretos únicamente en servidor. Revisar advisors, tipos generados y pruebas de aislamiento con dos usuarios antes de habilitar la nube.
 
-## Trabajo pendiente
-
-No hay cliente de autenticación, sincronización, migraciones desplegadas ni RLS aplicado todavía. Este documento define el contrato; no equivale a una base segura ya operativa. Las migraciones se generarán con el CLI a partir del esquema implementado y verificado en el nuevo proyecto.

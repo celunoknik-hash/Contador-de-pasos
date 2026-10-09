@@ -47,3 +47,7 @@ coverage/
 
 # Local agent guidance is not an application deliverable
 AGENTS.md
+
+# Supabase CLI local state
+supabase/.temp/
+supabase/.branches/

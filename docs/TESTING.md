@@ -50,3 +50,9 @@ En cada prueba registrar modelo, versión Android, versión Health Connect, orig
 ## Próxima etapa
 
 Validar APK y sensor antes de usar estos registros para emitir WalkCoins. Después, implementar Fase 2 con ledger idempotente, límite diario y condiciones verificables. La interfaz no otorga recompensas ni presenta mapas como si ya estuvieran implementados.
+
+## Base de Supabase (preparación de Fase 4)
+
+Se desplegó la migración `walkworld_core` en el proyecto independiente WalkWorld y se ejecutó `supabase/tests/access.sql` en una sola transacción: PASS. Comprueba aislamiento de dos identidades, permisos de invitado, ediciones propias/ajenas, reasignación de propietario, objetivos inválidos y unicidad del ledger. ROLLBACK elimina todos los fixtures; las seis tablas quedaron vacías. Advisors de seguridad sin incidencias.
+
+Esto valida las políticas SQL, no un login del móvil ni sincronización de extremo a extremo: ambas funciones y su validación Android siguen pendientes. Ver [SUPABASE.md](SUPABASE.md).
