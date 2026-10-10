@@ -1,3 +1,5 @@
+> Actualización 0.2.0: el modo sensor se sustituyó por Recording API de Android. La información de primer plano de la entrega 0.1.0 siguiente es histórica. Consulta [BACKGROUND.md](BACKGROUND.md) para implementación, limitaciones y pruebas de esta actualización.
+
 # WalkWorld — entrega del MVP
 
 Actualizado el 10 de octubre de 2026. Código funcional para Android, sin pasos o ubicaciones de muestra. Las pruebas físicas están pendientes: este documento distingue implementación, compilación y comportamiento observado.

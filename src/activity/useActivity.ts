@@ -2,9 +2,10 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { AppState, Platform } from 'react-native';
 import { Pedometer } from 'expo-sensors';
 import { ActivityRepository } from '../data/local';
-import { ActivityDay, consumeSensor, dayKey, Preferences, recentDays, SensorSession } from '../domain/activity';
+import { ActivityDay, dayKey, dayWindow, Preferences, recentDays } from '../domain/activity';
 import { challengesFor } from '../domain/rewards';
 import { connectHealth, healthTotal } from './healthConnect';
+import { recording } from './recording';
 
 export function useActivity(repo: ActivityRepository) {
   const [preferences, setPreferences] = useState(repo.preferences);
@@ -16,12 +17,13 @@ export function useActivity(repo: ActivityRepository) {
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [active, setActive] = useState(AppState.currentState === 'active');
-  const watcher = useRef<{remove(): void} | null>(null);
+  const generation = useRef(0);
+  const owner = repo.deviceId(() => { throw new Error('Identificador no disponible.'); });
   const inFlight = useRef(false);
   const actionBusy = useRef(false);
   const settings = useRef(preferences);
   const alive = useRef(true);
-  useEffect(() => { alive.current = true; return () => { alive.current = false; watcher.current?.remove(); }; }, []);
+  useEffect(() => { alive.current = true; return () => { alive.current = false; }; }, []);
   const reload = useCallback(() => { if (alive.current) { setDays(displayDays(repo)); setWallet(repo.wallet()); const p=repo.preferences(); settings.current=p; setPreferences(p); setCells(repo.cells()); setTodayKey(dayKey()); } }, [repo]);
   const save = useCallback((next: Preferences) => {
     repo.savePreferences(next); settings.current = next; setPreferences(next);
@@ -51,50 +53,51 @@ export function useActivity(repo: ActivityRepository) {
     const timer = setInterval(() => { setTodayKey(dayKey()); }, 15000);
     return () => clearInterval(timer);
   }, []);
+  const refreshRecording = useCallback(async (includeHistory = true) => {
+    if (inFlight.current || AppState.currentState !== 'active' || !settings.current.enabled || settings.current.source !== 'sensor') return;
+    const token = generation.current;
+    inFlight.current = true;
+    try {
+      const epoch = await recording.start(owner);
+      if (!alive.current || token !== generation.current || AppState.currentState !== 'active') return;
+      repo.beginRecording(epoch);
+      const now = new Date();
+      for (const day of includeHistory ? recentDays(10, now) : [dayKey(now)]) {
+        const window = dayWindow(day, now);
+        const start = Math.max(epoch, window.start.getTime());
+        const end = window.end.getTime();
+        if (end <= start || start < now.getTime() - 10 * 86400000) continue;
+        const remote = repo.remote()?.days.find(item => item.date === day);
+        if (remote && (remote.deviceId !== owner || remote.source !== 'sensor')) continue;
+        if (repo.list().some(item => item.date === day && item.source === 'health-connect')) continue;
+        const total = await recording.read(owner, epoch, start, end);
+        if (!alive.current || token !== generation.current || !settings.current.enabled || settings.current.source !== 'sensor' || AppState.currentState !== 'active') return;
+        if (!Number.isSafeInteger(total) || total < 0 || total > Math.min(250000, (end - start) / 1000 * 4 + 20)) throw new Error('Se descartó un total anómalo de Recording API.');
+        // Ownership may change while the native read is pending.
+        const latest = repo.remote()?.days.find(item => item.date === day);
+        if (latest && (latest.deviceId !== owner || latest.source !== 'sensor')) continue;
+        repo.recordRecording(day, total, settings.current.goal, epoch);
+      }
+      if (alive.current && token === generation.current) { setError(null); setStatus('Recording API activa · recupera pasos con la pantalla bloqueada'); reload(); }
+    } catch (e) { if (alive.current && token === generation.current) { setError(message(e)); setStatus('El registro en segundo plano necesita atención.'); } }
+    finally { inFlight.current = false; }
+  }, [owner, repo, reload]);
   useEffect(() => {
     let cancelled = false;
-    watcher.current?.remove(); watcher.current = null;
-    if (!preferences.enabled) return;
-    if (!active) return;
-    if (preferences.source === 'health-connect') {
-      // Defer the native read until after the first committed frame; cancel pending work on exit.
-      const firstRead = setTimeout(() => { if (!cancelled) void refreshHealth(); }, 0);
-      const timer = setInterval(() => void refreshHealth(false), 60000);
-      return () => { cancelled = true; clearTimeout(firstRead); clearInterval(timer); };
+    if (!preferences.enabled || preferences.source !== 'sensor') {
+      // Stop collection on explicit pause, source change or switching to a disabled account.
+      // No unsubscribe on background/unmount: that would discard the system's pending history.
+      void recording.stop().catch(e => { if (!cancelled && alive.current && preferences.source === 'sensor') setError(message(e)); });
     }
-    const begin = async () => {
-      try {
-        if (Platform.OS !== 'android') throw new Error('El contador de esta versión está preparado para Android.');
-        if (!await Pedometer.isAvailableAsync()) throw new Error('El teléfono no tiene un sensor de pasos disponible. Prueba Health Connect.');
-        if (!(await Pedometer.getPermissionsAsync()).granted) throw new Error('Permiso de actividad no concedido. Actívalo desde Perfil.');
-        if (cancelled) return;
-        if (repo.remote()?.days.some(day => day.date===dayKey() && day.deviceId!==repo.deviceId(()=>{throw new Error('Identificador no disponible.');}))) throw new Error('Hoy el registro pertenece a otro dispositivo. Consulta el progreso aquí y usa ese dispositivo para seguir contando.');
-        if ([...repo.list(),...(repo.remote()?.days ?? [])].some(day => day.date === dayKey() && day.source === 'health-connect')) {
-          throw new Error('Hoy ya usaste Health Connect. Para evitar mezclar fuentes, reconéctalo o usa el sensor desde mañana.');
-        }
-        let session: SensorSession = { cumulative: null, at: Date.now(), day: dayKey() };
-        watcher.current = Pedometer.watchStepCount(reading => {
-          if (cancelled || AppState.currentState !== 'active') return;
-          const remoteToday=repo.remote()?.days.find(day=>day.date===dayKey());
-          if(remoteToday && (remoteToday.source==='health-connect' || remoteToday.deviceId!==repo.deviceId(()=>{throw new Error('Identificador no disponible.');}))) {
-            watcher.current?.remove();watcher.current=null;
-            setError('El registro sincronizado de hoy usa otra fuente o dispositivo. Pausa el sensor y consulta Perfil.');return;
-          }
-          const result = consumeSensor(session, reading.steps, Date.now(), dayKey());
-          session = result.session;
-          try {
-            repo.recordSensor(session.day, result.delta, settings.current.goal, result.anomaly);
-            reload();
-            if (result.anomaly) setError('Se descartó una lectura anómala del sensor.');
-            else if (result.boundary) setStatus('Nuevo día · el primer lote de medianoche se descartó para evitar duplicados.');
-          } catch (e) { setError(message(e)); watcher.current?.remove(); watcher.current = null; }
-        });
-        setError(null); setStatus('Sensor activo · cuenta mientras WalkWorld está abierta');
-      } catch (e) { if (!cancelled) { setError(message(e)); setStatus('El contador necesita atención.'); } }
-    };
-    void begin();
-    return () => { cancelled = true; watcher.current?.remove(); watcher.current = null; };
-  }, [active, preferences.enabled, preferences.source, refreshHealth, repo, reload]);
+    return () => { cancelled = true; };
+  }, [preferences.enabled, preferences.source, owner]);
+  useEffect(() => {
+    if (!preferences.enabled || !active) return;
+    const refresh = preferences.source === 'sensor' ? refreshRecording : refreshHealth;
+    const first = setTimeout(() => void refresh(), 0);
+    const timer = setInterval(() => void refresh(false), preferences.source === 'sensor' ? 15000 : 60000);
+    return () => { clearTimeout(first); clearInterval(timer); };
+  }, [active, preferences.enabled, preferences.source, refreshHealth, refreshRecording]);
   const enable = async (source: Preferences['source']) => {
     if (actionBusy.current) return;
     actionBusy.current = true; setBusy(true); setError(null);
@@ -104,24 +107,37 @@ export function useActivity(repo: ActivityRepository) {
       if (source === 'health-connect') await connectHealth();
       else {
         if (Platform.OS !== 'android') throw new Error('Prueba el contador en un teléfono Android.');
-        if (!await Pedometer.isAvailableAsync()) throw new Error('Sensor no disponible en este dispositivo.');
+        
         if (!(await Pedometer.requestPermissionsAsync()).granted) throw new Error('Permiso denegado. Puedes habilitarlo en los ajustes de Android.');
         if ([...repo.list(),...(repo.remote()?.days ?? [])].some(day => day.date === dayKey() && day.source === 'health-connect')) throw new Error('Hoy ya se importaron pasos de Health Connect. Puedes volver al sensor mañana.');
       }
+      if (!alive.current) return;
+      generation.current++;
+      if (source === 'sensor') { const epoch = await recording.start(owner); if (!alive.current) return; repo.beginRecording(epoch); }
+      else await recording.stop();
+      if (!alive.current) return;
       save({ ...settings.current, source, enabled: true });
       if (source === 'health-connect') await refreshHealth();
-    } catch (e) { setError(message(e)); }
-    finally { actionBusy.current = false; setBusy(false); }
+      else await refreshRecording();
+    } catch (e) { if (alive.current) setError(message(e)); }
+    finally { actionBusy.current = false; if (alive.current) setBusy(false); }
   };
   const remoteBalance=repo.remote()?.balance;
   const today: ActivityDay | undefined = days.find(day => day.date === todayKey);
   return { preferences, days, today, todayKey, wallet, remoteBalance, cells, challenges: [...challengesFor(days, todayKey, preferences.goal), { id: 'first-sector', title: 'El primer descubrimiento', description: 'Descubre un sector durante una sesión de exploración. Recompensa única.', progress: cells.length ? 1 : 0, target: 1, reward: 10, completed: cells.length > 0, eligible: true }], status: preferences.enabled ? status : 'Contador pausado. Actívalo para comenzar; tus datos permanecen guardados.', error, busy, save, enable,
-    pause: () => {
-      watcher.current?.remove(); watcher.current = null;
-      try { save({ ...settings.current, enabled: false }); }
-      catch { setError('No se pudo guardar la pausa. Revisa el espacio disponible.'); }
+    pause: async () => {
+      if (actionBusy.current) return;
+      actionBusy.current = true; setBusy(true);
+      try {
+        if (settings.current.source === 'sensor') { await refreshRecording(); await recording.stop(); }
+        if (!alive.current) return;
+        generation.current++;
+        save({ ...settings.current, enabled: false });
+      } catch (e) { if (alive.current) setError(message(e)); }
+      finally { actionBusy.current = false; if (alive.current) setBusy(false); }
     },
-    refresh: refreshHealth, reload,
+    refresh: preferences.source === 'sensor' ? refreshRecording : refreshHealth, reload,
+
   };
 }
 function message(error: unknown) { return error instanceof Error ? error.message : 'No se pudo leer la actividad. Inténtalo nuevamente.'; }

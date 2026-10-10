@@ -1,3 +1,5 @@
+> Actualización 0.2.0: 33 pruebas automáticas aprobadas, incluyendo cursores de Recording API, reinicio, pausa, lecturas obsoletas y rollback transaccional. Pruebas físicas de segundo plano pendientes; matriz en [BACKGROUND.md](BACKGROUND.md).
+
 # Pruebas del MVP — 10 de octubre de 2026
 
 Resultados actuales: [MVP.md](MVP.md). Lint/TypeScript y 30 pruebas de lógica/SQLite real pasan; Edge Function pasa deno check, API sin token devuelve 401, pruebas SQL transaccionales pasan y advisors no detectan incidencias. Prebuild, bundle Hermes y Gradle assembleRelease pasan; APK arm64 generado, firma v2 e integridad verificadas. Claves foráneas en cascada comprobadas por lectura de catálogo. Prueba adicional de borrado de fixtures preparada en deletion.sql pero no ejecutada (error de requestState de la herramienta). Ninguna prueba física está completada.

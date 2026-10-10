@@ -20,6 +20,9 @@ export interface ActivityRepository {
   importGuest(value: { days: ActivityDay[]; cells: string[]; preferences: Preferences }): void;
   discover(id: string): boolean;
   recordSensor(date: string, delta: number, goal: number, anomaly: boolean): void;
+  recordingEpoch(): number | null;
+  beginRecording(epoch: number): void;
+  recordRecording(date: string, total: number, goal: number, epoch: number): void;
   reconcileHealth(date: string, total: number, goal: number): void;
 }
 interface DayRow { date: string; steps: number; goal: number; source: StepSource; partial: number; timezone: string; updated_at: string; revision: number; anomalies: number }
@@ -87,6 +90,26 @@ export function createRepository(db: Pick<SQLiteDatabase, 'execSync' | 'getFirst
     reconcileRewards();
     db.runSync('UPDATE schema_version SET version=4');
   });
+  const writeSensor = (date: string, delta: number, goal: number, anomaly: boolean) => {
+      if (!validDayKey(date)) throw new Error('Fecha de actividad no válida.');
+      if (!validGoal(goal)) throw new Error('Objetivo diario no válido.');
+      if (anomaly && delta !== 0) throw new Error('Una lectura anómala no puede generar pasos.');
+      if (!validTotal(delta)) throw new Error('Lectura de sensor no válida.');
+      if (delta === 0 && !anomaly) return;
+
+        const old = db.getFirstSync<DayRow>('SELECT * FROM activity_days WHERE date=?', date);
+        // Health Connect is authoritative for an already imported day. No cross-source summation.
+        if (old?.source === 'health-connect') return;
+        if (!validTotal((old?.steps ?? 0) + delta)) throw new Error('Se alcanzó el límite de validación diario.');
+        db.runSync(`INSERT INTO activity_days(date,steps,goal,source,partial,timezone,updated_at,anomalies)
+          VALUES(?,?,?,'sensor',1,?,?,?) ON CONFLICT(date) DO UPDATE SET
+          steps=activity_days.steps+excluded.steps, updated_at=excluded.updated_at,
+          revision=activity_days.revision+1, anomalies=activity_days.anomalies+excluded.anomalies`,
+          date, delta, goal, zone(), new Date().toISOString(), Number(anomaly));
+        db.runSync('INSERT INTO sync_days(date,revision) SELECT date,revision FROM activity_days WHERE date=? ON CONFLICT(date) DO UPDATE SET revision=excluded.revision', date);
+        reconcileRewards(date, (old?.steps ?? 0) < (old?.goal ?? goal) && (old?.steps ?? 0) + delta >= (old?.goal ?? goal));
+
+  };
   return {
     preferences,
     deviceId(make) { const old=db.getFirstSync<{value:string}>("SELECT value FROM sync_meta WHERE key='device'"); if(old) return old.value; const id=make(); db.runSync("INSERT INTO sync_meta(key,value) VALUES('device',?)",id); return id; },
@@ -153,26 +176,30 @@ export function createRepository(db: Pick<SQLiteDatabase, 'execSync' | 'getFirst
           .map(row => ({ id: row.id, key: row.reward_key, delta: row.delta, label: row.label, date: row.date, createdAt: row.created_at })),
       };
     },
-    recordSensor(date, delta, goal, anomaly) {
-      if (!validDayKey(date)) throw new Error('Fecha de actividad no válida.');
-      if (!validGoal(goal)) throw new Error('Objetivo diario no válido.');
-      if (anomaly && delta !== 0) throw new Error('Una lectura anómala no puede generar pasos.');
-      if (!validTotal(delta)) throw new Error('Lectura de sensor no válida.');
-      if (delta === 0 && !anomaly) return;
+    recordingEpoch() { const value = db.getFirstSync<{value:string}>("SELECT value FROM sync_meta WHERE key='recording-epoch'")?.value; return value ? Number(value) : null; },
+    beginRecording(epoch) {
+      if (!Number.isSafeInteger(epoch) || epoch <= 0) throw new Error('Inicio del contador no válido.');
       db.withTransactionSync(() => {
-        const old = db.getFirstSync<DayRow>('SELECT * FROM activity_days WHERE date=?', date);
-        // Health Connect is authoritative for an already imported day. No cross-source summation.
-        if (old?.source === 'health-connect') return;
-        if (!validTotal((old?.steps ?? 0) + delta)) throw new Error('Se alcanzó el límite de validación diario.');
-        db.runSync(`INSERT INTO activity_days(date,steps,goal,source,partial,timezone,updated_at,anomalies)
-          VALUES(?,?,?,'sensor',1,?,?,?) ON CONFLICT(date) DO UPDATE SET
-          steps=activity_days.steps+excluded.steps, updated_at=excluded.updated_at,
-          revision=activity_days.revision+1, anomalies=activity_days.anomalies+excluded.anomalies`,
-          date, delta, goal, zone(), new Date().toISOString(), Number(anomaly));
-        db.runSync('INSERT INTO sync_days(date,revision) SELECT date,revision FROM activity_days WHERE date=? ON CONFLICT(date) DO UPDATE SET revision=excluded.revision', date);
-        reconcileRewards(date, (old?.steps ?? 0) < (old?.goal ?? goal) && (old?.steps ?? 0) + delta >= (old?.goal ?? goal));
+        const old = db.getFirstSync<{value:string}>("SELECT value FROM sync_meta WHERE key='recording-epoch'")?.value;
+        if (old === String(epoch)) return;
+        db.runSync("DELETE FROM sync_meta WHERE key LIKE 'recording-total:%'");
+        db.runSync("INSERT INTO sync_meta(key,value) VALUES('recording-epoch',?) ON CONFLICT(key) DO UPDATE SET value=excluded.value", String(epoch));
       });
     },
+    recordRecording(date, total, goal, epoch) {
+      if (!validDayKey(date) || !validTotal(total) || !validGoal(goal)) throw new Error('Lectura de Recording API no válida.');
+      db.withTransactionSync(() => {
+        if (db.getFirstSync<{value:string}>("SELECT value FROM sync_meta WHERE key='recording-epoch'")?.value !== String(epoch)) return;
+        const key = `recording-total:${date}`;
+        const previous = Number(db.getFirstSync<{value:string}>('SELECT value FROM sync_meta WHERE key=?', key)?.value ?? 0);
+        // Fixed query interval + persisted high-water mark: refresh/restart never replays steps.
+        // Temporary smaller totals (latency/retention) neither subtract nor recredit activity.
+        if (total <= previous) return;
+        writeSensor(date, total - previous, goal, false);
+        db.runSync('INSERT INTO sync_meta(key,value) VALUES(?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value', key, String(total));
+      });
+    },
+    recordSensor(date, delta, goal, anomaly) { db.withTransactionSync(() => writeSensor(date, delta, goal, anomaly)); },
     reconcileHealth(date, total, goal) {
       if (!validDayKey(date)) throw new Error('Fecha de actividad no válida.');
       if (!validGoal(goal)) throw new Error('Objetivo diario no válido.');

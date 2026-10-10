@@ -173,3 +173,37 @@ test('separate repositories isolate guest and account history; import never sums
  guest.recordSensor('2026-09-01',5000,5000,false);assert.equal(account.list().length,0);guest.discover('1:1');
  account.importGuest(guest.exportGuest());account.importGuest(guest.exportGuest());assert.equal(account.list()[0].steps,5000);assert.equal(account.wallet().balance,85);assert.deepEqual(account.cells(),['1:1']);assert.equal(account.pending().days.length,1);a.sqlite.close();b.sqlite.close();
 });
+
+
+test('recording snapshots persist a high-water mark across restart without duplicate coins', () => {
+  const {sqlite,db}=database(); const repo=createRepository(db); const epoch=1000;
+  repo.recordSensor('2026-09-01',50,5000,false); repo.beginRecording(epoch);
+  repo.recordRecording('2026-09-01',100,5000,epoch);
+  const reopened=createRepository(db); assert.equal(reopened.recordingEpoch(),epoch);
+  reopened.beginRecording(epoch); reopened.recordRecording('2026-09-01',100,5000,epoch);
+  assert.equal(reopened.list()[0].steps,150); assert.equal(reopened.wallet().balance,1);
+  reopened.recordRecording('2026-09-01',80,5000,epoch);
+  reopened.recordRecording('2026-09-01',200,5000,epoch);
+  assert.equal(reopened.list()[0].steps,250); assert.equal(reopened.wallet().balance,2);
+  sqlite.close();
+});
+test('recording intervals after a pause only add new steps and discard stale reads', () => {
+  const {sqlite,db}=database(); const repo=createRepository(db);
+  repo.beginRecording(1000); repo.recordRecording('2026-09-01',100,5000,1000);
+  repo.beginRecording(2000); repo.recordRecording('2026-09-01',500,5000,1000);
+  repo.recordRecording('2026-09-01',100,5000,2000);
+  repo.recordRecording('2026-09-01',100,5000,2000);
+  repo.recordRecording('2026-09-02',100,5000,2000);
+  assert.equal(repo.list().find(d=>d.date==='2026-09-01')?.steps,200);
+  assert.equal(repo.list().find(d=>d.date==='2026-09-02')?.steps,100);
+  assert.equal(repo.wallet().balance,3); sqlite.close();
+});
+test('recording cursor and reward writes roll back atomically on storage failure', () => {
+  const {sqlite,db}=database(); const repo=createRepository(db);repo.beginRecording(1000);
+  sqlite.exec("CREATE TRIGGER fail_recording BEFORE INSERT ON local_coin_ledger BEGIN SELECT RAISE(ABORT, 'failure'); END;");
+  assert.throws(()=>repo.recordRecording('2026-09-01',100,5000,1000));
+  assert.equal(repo.list().length,0);sqlite.exec('DROP TRIGGER fail_recording');
+  repo.recordRecording('2026-09-01',100,5000,1000);assert.equal(repo.wallet().balance,1);
+  repo.reconcileHealth('2026-09-01',4000,5000);repo.recordRecording('2026-09-01',5000,5000,1000);
+  assert.equal(repo.list()[0].steps,4000); assert.equal(repo.wallet().balance,0);sqlite.close();
+});
