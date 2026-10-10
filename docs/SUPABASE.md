@@ -2,7 +2,7 @@
 
 Proyecto aislado `rfrcmvoziarfruarjrcc`, región sa-east-1. No modificar proyectos de otras aplicaciones.
 
-Se desplegaron cuatro migraciones (core, mvp_sync, auth_standard, sync_validation) y la Edge Function `walkworld-api`. Tipos en src/data/database.types.ts. Todas las tablas públicas tienen RLS y permisos explícitos. El cliente solo usa una publishable key; las claves de servidor permanecen en el entorno de Supabase.
+Se desplegaron cinco migraciones (core, mvp_sync, auth_standard, sync_validation, sector_queue) y la Edge Function `walkworld-api`. Tipos en src/data/database.types.ts. Todas las tablas públicas tienen RLS y permisos explícitos. El cliente solo usa una publishable key; las claves de servidor permanecen en el entorno de Supabase.
 
 La función Edge usa auth.getUser(token) antes de cualquier operación. El gateway verify_jwt está deshabilitado deliberadamente para usar esta autenticación propia compatible con las nuevas claves; el endpoint sin token responde 401. RPC sync_walkworld es SECURITY INVOKER y ejecutable solo por service_role. No se concedieron permisos nuevos sobre tablas internas de autenticación.
 

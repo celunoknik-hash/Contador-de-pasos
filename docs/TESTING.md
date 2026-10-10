@@ -1,6 +1,6 @@
 # Pruebas del MVP — 10 de octubre de 2026
 
-Resultados actuales: [MVP.md](MVP.md). Lint/TypeScript y 27 pruebas de lógica/SQLite real pasan; Edge Function pasa deno check, API sin token devuelve 401, pruebas SQL transaccionales pasan y advisors no detectan incidencias. Prebuild y bundle Hermes pasan. Ninguna prueba física está completada.
+Resultados actuales: [MVP.md](MVP.md). Lint/TypeScript y 30 pruebas de lógica/SQLite real pasan; Edge Function pasa deno check, API sin token devuelve 401, pruebas SQL transaccionales pasan y advisors no detectan incidencias. Prebuild y bundle Hermes pasan. Ninguna prueba física está completada.
 
 ## Matriz de pruebas físicas pendientes
 

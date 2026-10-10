@@ -33,12 +33,12 @@ export function useSync(repo:ActivityRepository, userId:string|undefined, reload
       const remote=validate(body);
       repo.saveRemote(remote);
       // A newer edit/reading made during the request remains queued.
-      repo.acknowledge(days,cells,pending.preferenceRevision);
+      repo.acknowledge(days,cells.filter(cell=>remote.cells.includes(cell)),pending.preferenceRevision);
       if(!repo.pending().editPreferences) repo.restorePreferences({name:remote.profile.display_name,avatar:remote.profile.avatar_key,goal:remote.preferences.daily_goal,strideMeters:Number(remote.preferences.stride_meters),weightKg:Number(remote.preferences.weight_kg),theme:remote.preferences.theme});
       reload();
       const queued=repo.pending();
       setStatus(queued.days.length || queued.cells.length ? 'Parte sincronizada · quedan registros pendientes.' : `Sincronizado · ${new Date().toLocaleTimeString('es-CL',{hour:'2-digit',minute:'2-digit'})}`);
-    } catch(error) { if(alive.current) setStatus(error instanceof Error && error.name!=='AbortError' ? error.message : 'Sin conexión o tiempo agotado. Reintentaremos; tus datos siguen guardados.'); }
+    } catch(error) { if(alive.current) setStatus(error instanceof Error && !(error instanceof TypeError) && error.name!=='AbortError' ? error.message : 'Sin conexión o tiempo agotado. Reintentaremos; tus datos siguen guardados.'); }
     finally { clearTimeout(timeout); controller.current=null;running.current=false;if(alive.current)setBusy(false); }
   },[repo,userId,reload,deviceId]);
   useEffect(()=>{

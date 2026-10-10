@@ -14,7 +14,8 @@ begin
   if (b->>'balance')::int<>85 or (select count(*) from public.step_submissions where user_id=u)<>1 then raise exception 'Replay duplicated data';end if;
   b:=public.sync_walkworld(u,other,jsonb_set(d,'{0,steps}','10000'),array[]::text[],p,false);
   if (b->>'balance')::int<>85 or (b->'days'->0->>'steps')::int<>5000 then raise exception 'Second device duplicated walking';end if;
-  b:=public.sync_walkworld(v,other,'[]',array[]::text[],p,false);
+  b:=public.sync_walkworld(v,other,'[]',array['2:2'],p,false);
+  if jsonb_array_length(b->'cells')<>0 then raise exception 'Sector without steps was accepted';end if;
   if (b->>'balance')::int<>0 then raise exception 'Account data leaked';end if;
   b:=public.sync_walkworld(u,phone,jsonb_set(jsonb_set(jsonb_set(d,'{0,source}','"health-connect"'),'{0,revision}','2'),'{0,steps}','4000'),array[]::text[],p,false);
   if (b->>'balance')::int<>10 then raise exception 'HC incorrectly earned rewards';end if;

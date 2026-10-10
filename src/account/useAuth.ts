@@ -50,7 +50,7 @@ export function useAuth() {
   const run = async (work: () => Promise<string>) => {
     if(busyRef.current) return; busyRef.current=true; setBusy(true); setMessage('');
     try { setMessage(await work()); }
-    catch(error) { setMessage(error instanceof Error ? error.message : 'No se pudo completar la operación.'); }
+    catch(error) { setMessage(authMessage(error)); }
     finally { busyRef.current=false; setBusy(false); }
   };
   return { user,ready,recovery,busy,message,
@@ -62,7 +62,7 @@ export function useAuth() {
       return data.session ? 'Cuenta creada.' : 'Revisa tu correo y confirma la cuenta. Si el enlace no abre WalkWorld, puedes pegarlo abajo para confirmar aquí.';
     }),
     confirm: (link:string) => run(async () => {
-      const url=new URL(link.trim());
+      let url:URL;try{url=new URL(link.trim());}catch{throw new Error('Pega el enlace completo recibido por correo.');}
       if(url.origin!==supabaseUrl || !url.pathname.startsWith('/auth/v1/verify')) throw new Error('Pega únicamente el enlace de confirmación de WalkWorld recibido por correo.');
       const token=url.searchParams.get('token'); const type=url.searchParams.get('type');
       if(!token || !['signup','recovery','email'].includes(type ?? '')) throw new Error('Enlace de confirmación no válido.');
@@ -81,3 +81,9 @@ export function useAuth() {
   };
 }
 
+
+function authMessage(error:unknown) {
+ const messages:Record<string,string>={invalid_credentials:'Correo o contraseña incorrectos.',email_not_confirmed:'Confirma tu correo antes de iniciar sesión.',over_email_send_rate_limit:'Se alcanzó el límite de correos. Espera y vuelve a intentarlo.',over_request_rate_limit:'Demasiados intentos. Espera antes de continuar.',signup_disabled:'El registro no está habilitado.',email_address_not_authorized:'El servicio de correo aún no permite enviar a esta dirección. Falta configurar SMTP para usuarios externos.',user_already_exists:'Esta cuenta ya existe. Prueba iniciar sesión o recuperar tu contraseña.',otp_expired:'El enlace caducó. Solicita otro correo.',weak_password:'Elige una contraseña más segura.'};
+ if(error instanceof Error && error.name.startsWith('Auth')) {const code='code' in error ? String(error.code) : '';return messages[code] ?? 'No se pudo completar la operación de cuenta. Revisa tu conexión y los datos e inténtalo de nuevo.';}
+ return error instanceof Error ? error.message : 'No se pudo completar la operación.';
+}

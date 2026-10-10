@@ -170,6 +170,6 @@ test('remote snapshots never generate local steps or coins, and device identity 
 });
 test('separate repositories isolate guest and account history; import never sums days',()=>{
  const a=database(),b=database();const guest=createRepository(a.db),account=createRepository(b.db);
- guest.recordSensor('2026-09-01',5000,5000,false);assert.equal(account.list().length,0);
- account.importGuest(guest.exportGuest());account.importGuest(guest.exportGuest());assert.equal(account.list()[0].steps,5000);assert.equal(account.wallet().balance,75);assert.equal(account.pending().days.length,1);a.sqlite.close();b.sqlite.close();
+ guest.recordSensor('2026-09-01',5000,5000,false);assert.equal(account.list().length,0);guest.discover('1:1');
+ account.importGuest(guest.exportGuest());account.importGuest(guest.exportGuest());assert.equal(account.list()[0].steps,5000);assert.equal(account.wallet().balance,85);assert.deepEqual(account.cells(),['1:1']);assert.equal(account.pending().days.length,1);a.sqlite.close();b.sqlite.close();
 });

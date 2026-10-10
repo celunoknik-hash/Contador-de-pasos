@@ -15,10 +15,10 @@ Actualizado el 10 de octubre de 2026. Código funcional para Android, sin pasos 
 ## Fase 4 — cuentas y sincronización implementadas
 
 - Correo/contraseña, registro, confirmación por enlace, recuperación y cambio de contraseña, cierre local de sesión y eliminación de cuenta/datos mediante API autenticada.
-- Credenciales cifradas con Expo SecureStore, almacenamiento fragmentado para tokens largos y reemplazo transaccional del puntero. No hay clave de servidor en la app.
+- Credenciales cifradas con Expo SecureStore, almacenamiento fragmentado para tokens largos, reemplazo transaccional del puntero y operaciones serializadas por clave. No hay clave de servidor en la app.
 - Una base SQLite por usuario y otra de invitado. La importación de invitado es explícita, conserva su copia y nunca suma días que ya existen en la cuenta.
 - Cola durable de días/revisiones, sectores y preferencias. Reintenta al volver al primer plano y cada minuto mientras la app está activa; también permite sincronizar manualmente. Tiempo máximo de solicitud 20 s y cancelación al salir/cambiar de cuenta.
-- Solo se confirman las revisiones enviadas: los pasos o preferencias nuevos quedan pendientes. El saldo remoto no se suma al local. Sin conexión se conserva el último saldo sincronizado y el historial local.
+- Solo se confirman las revisiones enviadas: los pasos o preferencias nuevos quedan pendientes. El saldo remoto no se suma al local. Si un sector no tiene suficientes pasos elegibles en la nube (por ejemplo, tras cambiar a Health Connect antes del primer envío), permanece pendiente sin bloquear la sincronización del resto. Sin conexión se conserva el último saldo sincronizado y el historial local.
 - Supabase tiene RLS y permisos explícitos en todas las tablas. `walkworld-api` valida cada token con `auth.getUser`; únicamente el servidor puede ejecutar `sync_walkworld` y escribir pasos canónicos/monedas/sectores.
 - Un dispositivo es propietario del registro canónico de cada día: se fija al primer envío y no se suman dos teléfonos. El historial remoto se muestra sin volver a generar monedas locales. Cambiar/reinstalar un teléfono puede requerir esperar al siguiente día; no existe todavía transferencia del dispositivo principal.
 - El servidor calcula las recompensas; revisiones únicas y ledger idempotente impiden pagos repetidos. Corrige derechos al sustituir sensor por Health Connect. Bonos de desafío son adicionales al límite de 200 monedas base/día.
@@ -36,11 +36,11 @@ El proveedor SMTP incorporado de Supabase tiene restricciones (incluyendo destin
 
 ## Fase 5 — verificaciones y distribución
 
-- ESLint y TypeScript pasan. 27 pruebas de dominio/SQLite real pasan; contemplan reinicios, medianoche/DST, anomalías, límites/bonos, correcciones, fallos transaccionales, GPS, sectores, cola y aislamiento.
+- ESLint y TypeScript pasan. 30 pruebas de dominio/SQLite real pasan; contemplan reinicios, medianoche/DST, anomalías, límites/bonos, correcciones, fallos transaccionales, GPS, sectores, cola y aislamiento.
 - `deno check` pasa en la Edge Function. API desplegada responde 401 sin token. Advisors de Supabase de seguridad/rendimiento: sin incidencias.
 - `supabase/tests/mvp.sql` pasa en una transacción con ROLLBACK: recompensas esperadas, replay idempotente, dos dispositivos sin sumar, cambio a HC sin recompensas, aislamiento RLS y RPC prohibido al cliente. No deja actividad de prueba en producción.
 - Se añade workflow `.github/workflows/android-apk.yml` para generar un APK arm64 de pruebas con bundle release y firma debug, sin claves privadas; no usar en Play Store. La compilación local queda bloqueada por acceso de red al repositorio de plugins Gradle.
-- Prebuild Android y exportación Hermes pasan. Eso no sustituye una compilación Gradle ni pruebas de teléfono.
+- Expo Doctor: 21/21 verificaciones pasan. Prebuild Android y exportación Hermes pasan. Eso no sustituye una compilación Gradle ni pruebas de teléfono.
 - Véase `TESTING.md` para matriz Android. Ningún sensor, GPS, correo, inicio de sesión móvil ni batería se ha validado en un teléfono real.
 
 ## Probar en Android
