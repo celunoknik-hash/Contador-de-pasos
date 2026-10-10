@@ -1,3 +1,4 @@
-export const light = { background: '#F3F7F5', card: '#FFFFFF', text: '#142C25', muted: '#5A7067', line: '#DCE6E1', accent: '#087D5B', soft: '#E2F3EB', blue: '#23619A', gold: '#97670B', error: '#B52E3A' };
-export const dark: typeof light = { background: '#0B1815', card: '#142923', text: '#F0F8F4', muted: '#A4BEB3', line: '#30463D', accent: '#57DBAB', soft: '#213E31', blue: '#8EC4FF', gold: '#E9C26B', error: '#FF969E' };
+/** Neutral surfaces keep activity, typography and hierarchy in focus. */
+export const light = { background: '#F5F5F7', card: '#FFFFFF', text: '#171719', muted: '#66666D', line: '#E8E8EC', accent: '#202023', onAccent: '#FFFFFF', soft: '#F0F0F3', blue: '#555560', gold: '#66666D', error: '#B42332' };
+export const dark: typeof light = { background: '#101012', card: '#1C1C1F', text: '#F5F5F7', muted: '#ABABB3', line: '#323236', accent: '#F0F0F3', onAccent: '#171719', soft: '#29292E', blue: '#C4C4CC', gold: '#ABABB3', error: '#FF9BA5' };
 export type Palette = typeof light;

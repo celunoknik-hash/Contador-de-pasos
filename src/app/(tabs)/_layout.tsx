@@ -12,11 +12,11 @@ export default function TabsLayout() {
   return <SafeAreaView edges={['top', 'left', 'right']} style={{ flex: 1, backgroundColor: c.background }}>
     <StatusBar style={isDark ? 'light' : 'dark'} />
     <Tabs screenOptions={{
-      header: () => <View style={{ paddingHorizontal: 22, paddingVertical: 14, flexDirection: 'row', alignItems: 'center', gap: 9, backgroundColor: c.background }}><Ionicons name="earth-outline" size={24} color={c.accent} /><Text style={{ fontSize: 21, fontWeight: '800', color: c.text }}>WalkWorld</Text></View>,
+      header: () => <View style={{ paddingHorizontal: 22, paddingVertical: 12, flexDirection: 'row', alignItems: 'center', gap: 9, backgroundColor: c.background }}><Ionicons name="earth-outline" size={20} color={c.accent} /><Text style={{ fontSize: 17, fontWeight: '600', letterSpacing: -0.5, color: c.text }}>walkworld</Text></View>,
       sceneStyle: { backgroundColor: c.background },
       tabBarActiveTintColor: c.accent, tabBarInactiveTintColor: c.muted,
-      tabBarLabelStyle: { fontSize: 11 }, tabBarItemStyle: { minHeight: 48 },
-      tabBarStyle: { backgroundColor: c.card, borderTopColor: c.line, height: 64 + insets.bottom, paddingTop: 7, paddingBottom: Math.max(insets.bottom, 7) },
+      tabBarLabelStyle: { fontSize: 10, fontWeight: '500' }, tabBarItemStyle: { minHeight: 48 },
+      tabBarStyle: { backgroundColor: c.card, borderTopColor: c.line, elevation: 0, shadowOpacity: 0, height: 62 + insets.bottom, paddingTop: 7, paddingBottom: Math.max(insets.bottom, 7) },
     }}>
       <Tabs.Screen name="index" options={{ title: 'Inicio', tabBarIcon: icon('home-outline') }} />
       <Tabs.Screen name="explore" options={{ title: 'Explorar', tabBarIcon: icon('compass-outline') }} />

@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Alert, TextInput, View } from 'react-native';
 import { useAccount } from './context';
 import { useWalkWorld } from '../ui/context';
-import { Button, Card, Label } from '../ui/components';
+import { Button, Card, Disclosure, Label } from '../ui/components';
 import { openRepository } from '../data/local';
 export function AccountCard() {
   const auth=useAccount();const {c,model,repo,sync}=useWalkWorld();
@@ -22,7 +22,7 @@ export function AccountCard() {
     <Button c={c} secondary disabled={auth.busy} title="Recuperar contraseña" onPress={()=>perform(()=>auth.reset(email))} />
   </>}
     {auth.recovery && <View style={{gap:10}}>{field('Nueva contraseña',password,setPassword,true)}<Button c={c} disabled={auth.busy} title="Guardar nueva contraseña" onPress={()=>perform(()=>auth.newPassword(password))} /></View>}
-    <>{field('Pegar enlace de confirmación del correo',link,setLink)}<Button c={c} secondary disabled={auth.busy || !link.trim()} title="Confirmar enlace" onPress={()=>{perform(()=>auth.confirm(link));setLink('');}} /></>
+    <Disclosure c={c} title="Confirmar un enlace del correo">{field('Pegar enlace de confirmación del correo',link,setLink)}<Button c={c} secondary disabled={auth.busy || !link.trim()} title="Confirmar enlace" onPress={()=>{perform(()=>auth.confirm(link));setLink('');}} /></Disclosure>
     {!!auth.message && <Label c={c} muted size={13}>{auth.message}</Label>}
   </Card>;
 }

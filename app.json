@@ -2,7 +2,7 @@
   "expo": {
     "name": "WalkWorld",
     "slug": "walkworld",
-    "version": "0.2.0",
+    "version": "0.3.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "automatic",
@@ -11,13 +11,13 @@
     },
     "android": {
       "adaptiveIcon": {
-        "backgroundColor": "#087D5B",
+        "backgroundColor": "#F5F5F7",
         "foregroundImage": "./assets/adaptive-icon.png",
         "monochromeImage": "./assets/monochrome-icon.png"
       },
       "predictiveBackGestureEnabled": false,
       "package": "com.walkworld.mobile",
-      "versionCode": 2,
+      "versionCode": 3,
       "permissions": [
         "android.permission.ACTIVITY_RECOGNITION",
         "android.permission.health.READ_STEPS",
