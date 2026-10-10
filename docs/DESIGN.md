@@ -18,7 +18,7 @@ Se conserva la fuente del sistema de Android. La inspiración visual no requiere
 
 Lint, TypeScript, las 33 pruebas existentes y la exportación del paquete Android pasan. Los contrastes comprobados entre texto normal/secundario y sus superficies están entre 5,23:1 y 17,90:1; texto sobre botones, entre 15,74:1 y 16,25:1.
 
-La revisión automática de capturas mediante un entorno temporal React Native Web no pudo ejecutarse: el entorno bloqueó el arranque de Chromium. No constituye una prueba visual superada. Las dependencias y los datos aislados de esa herramienta no se incorporaron a la app ni al repositorio.
+La revisión aislada de los componentes reales mediante React Native Web y Chromium Headless Shell pasó 30 combinaciones: Inicio, Desafíos, Progreso, Perfil y Explorar, en claro/oscuro y anchos de 320, 390 y 768 píxeles. No se detectaron desbordamientos horizontales ni errores JavaScript. Se comprobó abrir/cerrar los detalles del contador en seis combinaciones y se inspeccionaron capturas de Inicio en ambos temas. Se usaron estados vacíos de prueba, sin sensores ni autenticación; el bloque de cuenta se excluyó del renderizado aislado de Perfil. Las dependencias y los datos de esta herramienta temporal no se incorporaron a la app ni al repositorio. Esta revisión no valida la navegación nativa, las áreas seguras o el escalado de fuentes de Android.
 
 ## Comprobación en un teléfono
 
