@@ -69,12 +69,17 @@ export function useActivity(repo: ActivityRepository) {
         if (!(await Pedometer.getPermissionsAsync()).granted) throw new Error('Permiso de actividad no concedido. Actívalo desde Perfil.');
         if (cancelled) return;
         if (repo.remote()?.days.some(day => day.date===dayKey() && day.deviceId!==repo.deviceId(()=>{throw new Error('Identificador no disponible.');}))) throw new Error('Hoy el registro pertenece a otro dispositivo. Consulta el progreso aquí y usa ese dispositivo para seguir contando.');
-        if (repo.list().some(day => day.date === dayKey() && day.source === 'health-connect')) {
+        if ([...repo.list(),...(repo.remote()?.days ?? [])].some(day => day.date === dayKey() && day.source === 'health-connect')) {
           throw new Error('Hoy ya usaste Health Connect. Para evitar mezclar fuentes, reconéctalo o usa el sensor desde mañana.');
         }
         let session: SensorSession = { cumulative: null, at: Date.now(), day: dayKey() };
         watcher.current = Pedometer.watchStepCount(reading => {
           if (cancelled || AppState.currentState !== 'active') return;
+          const remoteToday=repo.remote()?.days.find(day=>day.date===dayKey());
+          if(remoteToday && (remoteToday.source==='health-connect' || remoteToday.deviceId!==repo.deviceId(()=>{throw new Error('Identificador no disponible.');}))) {
+            watcher.current?.remove();watcher.current=null;
+            setError('El registro sincronizado de hoy usa otra fuente o dispositivo. Pausa el sensor y consulta Perfil.');return;
+          }
           const result = consumeSensor(session, reading.steps, Date.now(), dayKey());
           session = result.session;
           try {
@@ -94,12 +99,14 @@ export function useActivity(repo: ActivityRepository) {
     if (actionBusy.current) return;
     actionBusy.current = true; setBusy(true); setError(null);
     try {
+      const remoteToday=repo.remote()?.days.find(day=>day.date===dayKey());
+      if(remoteToday && remoteToday.deviceId!==repo.deviceId(()=>{throw new Error('Identificador no disponible.');})) throw new Error('Hoy el registro pertenece a otro dispositivo. Usa ese dispositivo para seguir contando; aquí puedes consultar tu historial.');
       if (source === 'health-connect') await connectHealth();
       else {
         if (Platform.OS !== 'android') throw new Error('Prueba el contador en un teléfono Android.');
         if (!await Pedometer.isAvailableAsync()) throw new Error('Sensor no disponible en este dispositivo.');
         if (!(await Pedometer.requestPermissionsAsync()).granted) throw new Error('Permiso denegado. Puedes habilitarlo en los ajustes de Android.');
-        if (repo.list().some(day => day.date === dayKey() && day.source === 'health-connect')) throw new Error('Hoy ya se importaron pasos de Health Connect. Puedes volver al sensor mañana.');
+        if ([...repo.list(),...(repo.remote()?.days ?? [])].some(day => day.date === dayKey() && day.source === 'health-connect')) throw new Error('Hoy ya se importaron pasos de Health Connect. Puedes volver al sensor mañana.');
       }
       save({ ...settings.current, source, enabled: true });
       if (source === 'health-connect') await refreshHealth();

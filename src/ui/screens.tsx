@@ -78,24 +78,26 @@ export function Progress({ c, model }: Props) {
 }
 export function Profile({ c, model }: Props) {
   const p = model.preferences;
-  const [name, setName] = useState(p.name);
-  const [goal, setGoal] = useState(String(p.goal));
-  const [stride, setStride] = useState(String(p.strideMeters));
-  const [weight, setWeight] = useState(String(p.weightKg));
+  const base=JSON.stringify([p.name,p.goal,p.strideMeters,p.weightKg]);
+  const initial={base,name:p.name,goal:String(p.goal),stride:String(p.strideMeters),weight:String(p.weightKg),dirty:false};
+  const [draft,setDraft]=useState(initial);
+  const form=draft.base===base || draft.dirty ? draft : initial;
+  const {name,goal,stride,weight}=form;
+  const change=(key:'name'|'goal'|'stride'|'weight',value:string)=>setDraft({...form,[key]:value,dirty:true});
   const [showPrivacy, setShowPrivacy] = useState(false);
   const save = () => {
     const g = Number(goal); const s = Number(stride.replace(',', '.')); const w = Number(weight.replace(',', '.'));
     if (!validGoal(g)) { Alert.alert('Revisa tu objetivo', 'Usa un número entero entre 500 y 50.000 pasos.'); return; }
     if (name.trim().length < 2 || name.trim().length > 30) { Alert.alert('Revisa tu nombre', 'Escribe entre 2 y 30 caracteres.'); return; }
     if (!Number.isFinite(s) || s < 0.2 || s > 1.5 || !Number.isFinite(w) || w < 20 || w > 300) { Alert.alert('Revisa tus estimaciones', 'Usa una longitud de paso entre 0,2 y 1,5 m y un peso entre 20 y 300 kg.'); return; }
-    try { model.save({ ...p, name: name.trim(), goal: g, strideMeters: s, weightKg: w }); Alert.alert('Guardado', 'Tus preferencias se guardaron en el teléfono.'); }
+    try { model.save({ ...p, name: name.trim(), goal: g, strideMeters: s, weightKg: w }); setDraft({...form,name:name.trim(),base:JSON.stringify([name.trim(),g,s,w]),dirty:false}); Alert.alert('Guardado', 'Tus preferencias se guardaron en el teléfono.'); }
     catch { Alert.alert('No se pudo guardar', 'Revisa el espacio disponible y vuelve a intentarlo.'); }
   };
   const field = (label: string, value: string, change: (s: string) => void, numeric = false) => <View style={{ gap: 6 }}><Label c={c} size={14} bold>{label}</Label><TextInput accessibilityLabel={label} value={value} onChangeText={change} maxLength={numeric ? 8 : 30} keyboardType={numeric ? 'decimal-pad' : 'default'} placeholderTextColor={c.muted} style={{ borderWidth: 1, borderColor: c.line, padding: 14, borderRadius: 13, fontSize: 16, color: c.text, minHeight: 48 }} /></View>;
   return <>
     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 14 }}><View style={{ width: 62, height: 62, borderRadius: 24, backgroundColor: c.soft, alignItems: 'center', justifyContent: 'center' }}><Label c={c} size={30}>{{walker: "🚶", forest: "🌳", ocean: "🌊", mountain: "⛰️"}[p.avatar]}</Label></View><View style={{ flex: 1 }}><Label c={c} bold size={24}>{p.name}</Label><Label c={c} muted size={13}>Perfil en este teléfono</Label></View></View>
     <AccountCard />
-    <Card c={c}><Label c={c} bold>Tu ritmo</Label>{field('Nombre', name, setName)}{field('Objetivo diario (pasos)', goal, setGoal, true)}{field('Longitud de paso estimada (m)', stride, setStride, true)}{field('Peso para estimar calorías (kg)', weight, setWeight, true)}<Label c={c} muted size={12}>Distancia y calorías son aproximaciones. Puedes mantener los valores iniciales. Cambiar estas estimaciones recalcula el historial. Si hoy ya hay registros, su meta se conserva y el nuevo objetivo se aplica al próximo día.</Label><Button c={c} title="Guardar preferencias" onPress={save} /></Card>
+    <Card c={c}><Label c={c} bold>Tu ritmo</Label>{field('Nombre', name, value=>change('name',value))}{field('Objetivo diario (pasos)', goal, value=>change('goal',value), true)}{field('Longitud de paso estimada (m)', stride, value=>change('stride',value), true)}{field('Peso para estimar calorías (kg)', weight, value=>change('weight',value), true)}<Label c={c} muted size={12}>Distancia y calorías son aproximaciones. Puedes mantener los valores iniciales. Cambiar estas estimaciones recalcula el historial. Si hoy ya hay registros, su meta se conserva y el nuevo objetivo se aplica al próximo día.</Label><Button c={c} title="Guardar preferencias" onPress={save} /></Card>
     <Card c={c}><Label c={c} bold>Avatar</Label><View style={{flexDirection:'row',flexWrap:'wrap',gap:8}}>{([['walker','🚶'],['forest','🌳'],['ocean','🌊'],['mountain','⛰️']] as const).map(([avatar,icon])=><Pressable key={avatar} accessibilityRole="radio" accessibilityLabel={`Avatar ${avatar}`} accessibilityState={{checked:p.avatar===avatar}} onPress={()=>{try{model.save({...p,avatar});}catch{Alert.alert('Error','No se pudo guardar el avatar.');}}} style={{padding:14,minHeight:48,borderWidth:1,borderColor:p.avatar===avatar?c.accent:c.line,borderRadius:12}}><Label c={c} size={26}>{icon}</Label></Pressable>)}</View><Label c={c} bold>Apariencia</Label><View style={{ gap: 8 }}>{([['system', 'Según el teléfono'], ['light', 'Claro'], ['dark', 'Oscuro']] as const).map(([value, title]) => <Pressable key={value} accessibilityRole="radio" accessibilityState={{ checked: p.theme === value }} onPress={() => { try { model.save({ ...p, theme: value }); } catch { Alert.alert('Error', 'No se pudo guardar la apariencia.'); } }} style={{ minHeight: 48, padding: 13, backgroundColor: p.theme === value ? c.soft : c.card, borderWidth: 1, borderColor: c.line, borderRadius: 12, flexDirection: 'row', gap: 10 }}><Ionicons name={p.theme === value ? 'radio-button-on' : 'radio-button-off'} size={22} color={c.accent} /><Label c={c} size={15}>{title}</Label></Pressable>)}</View></Card>
     <Card c={c}><Label c={c} bold>Datos y permisos</Label><Label c={c} muted size={14}>Fuente: {p.source === 'sensor' ? 'sensor con app abierta' : 'Health Connect'}. {p.enabled ? 'Habilitada.' : 'Pausada.'}</Label><Button c={c} disabled={model.busy} title="Usar sensor del teléfono" onPress={() => void model.enable('sensor')} /><Button c={c} secondary disabled={model.busy} title="Conectar Health Connect" onPress={() => void model.enable('health-connect')} />
       {p.source === 'health-connect' && <Button c={c} secondary title="Gestionar permisos de Health Connect" onPress={() => void healthSettings().catch(e => Alert.alert('Health Connect', String(e.message)))} />}
