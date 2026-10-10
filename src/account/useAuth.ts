@@ -27,7 +27,7 @@ export function useAuth() {
     void (async () => {
       try {
         const saved = await secureStorage.getItem('walkworld.identity');
-        if (saved && active) {const identity=JSON.parse(saved); if(/^[0-9a-f-]{36}$/i.test(identity.id ?? ''))setUser(identity);}
+        if (saved && active) {const identity=JSON.parse(saved); if(/^[0-9a-f-]{36}$/i.test(identity.id ?? '')) {setUser(identity);setReady(true);}}
         const { data,error } = await supabase.auth.getSession();
         if (!error) apply(data.session); else if(active) setMessage('Sin conexión: conserva tus datos locales y vuelve a iniciar sesión cuando tengas internet.');
       } catch { if(active) setMessage('No se pudo cargar la sesión segura.'); }
