@@ -1,6 +1,6 @@
 # Pruebas del MVP — 10 de octubre de 2026
 
-Resultados actuales: [MVP.md](MVP.md). Lint/TypeScript y 30 pruebas de lógica/SQLite real pasan; Edge Function pasa deno check, API sin token devuelve 401, pruebas SQL transaccionales pasan y advisors no detectan incidencias. Prebuild y bundle Hermes pasan. Ninguna prueba física está completada.
+Resultados actuales: [MVP.md](MVP.md). Lint/TypeScript y 30 pruebas de lógica/SQLite real pasan; Edge Function pasa deno check, API sin token devuelve 401, pruebas SQL transaccionales pasan y advisors no detectan incidencias. Prebuild, bundle Hermes y Gradle assembleRelease pasan; APK arm64 generado, firma v2 e integridad verificadas. Claves foráneas en cascada comprobadas por lectura de catálogo. Prueba adicional de borrado de fixtures preparada en deletion.sql pero no ejecutada (error de requestState de la herramienta). Ninguna prueba física está completada.
 
 ## Matriz de pruebas físicas pendientes
 

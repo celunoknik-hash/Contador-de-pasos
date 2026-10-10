@@ -40,12 +40,16 @@ El proveedor SMTP incorporado de Supabase tiene restricciones (incluyendo destin
 - `deno check` pasa en la Edge Function. API desplegada responde 401 sin token. Advisors de Supabase de seguridad/rendimiento: sin incidencias.
 - `supabase/tests/mvp.sql` pasa en una transacción con ROLLBACK: recompensas esperadas, replay idempotente, dos dispositivos sin sumar, cambio a HC sin recompensas, aislamiento RLS y RPC prohibido al cliente. No deja actividad de prueba en producción.
 - Se añade workflow `.github/workflows/android-apk.yml` para generar un APK arm64 de pruebas con bundle release y firma debug, sin claves privadas; no usar en Play Store. La compilación local queda bloqueada por acceso de red al repositorio de plugins Gradle.
-- Expo Doctor: 21/21 verificaciones pasan. Prebuild Android y exportación Hermes pasan. Eso no sustituye una compilación Gradle ni pruebas de teléfono.
+- Expo Doctor: 21/21 verificaciones pasan. Prebuild, bundle Hermes y **Gradle assembleRelease pasan**. GitHub run 38013891410 completó la compilación nativa en 12 min 20 s con el commit 9c63a75875b122291d2d1fe7f6ba3713f15d7cf5.
+- APK generado: `WalkWorld-0.1.0-android-arm64.apk`, 77.028.368 bytes; paquete com.walkworld.mobile, versión 0.1.0, Android 9+ (minSdk 28), targetSdk 36, solo arm64-v8a. Firma APK v2 verificada con apksigner, certificado debug de pruebas. SHA256: `50ba12086983e5a4ae39a111d1e9cfa84ff41526972e56f7e3f845d9653860a9`.
+- SHA256 del ZIP de GitHub coincide con su digest publicado: `00a3977a23e53a7af59ff1814218d34329689ae0409fa09ef825dbfbe1af1cc9`.
+- Permisos APK comprobados: actividad física, lectura de pasos y ubicación en primer plano; no incluye cámara, micrófono, ubicación en segundo plano ni almacenamiento externo. SecureStore incorpora permisos normales de biometría/huella, pero la app no solicita ni usa autenticación biométrica.
+- Claves foráneas de todas las tablas privadas comprobadas: cascada al eliminar usuario/dispositivo. Script adicional `supabase/tests/deletion.sql` preparado para staging; no ejecutado por error de la herramienta (requestState expirado). La eliminación mediante UI/Auth Admin continúa pendiente de prueba física.
 - Véase `TESTING.md` para matriz Android. Ningún sensor, GPS, correo, inicio de sesión móvil ni batería se ha validado en un teléfono real.
 
 ## Probar en Android
 
-1. Node 24, `npm ci`, `npm run verify`.
+1. Instalar el APK arm64 de pruebas en Android 9+ permitiendo instalación desde el origen de descarga. Para desarrollar: Node 24, `npm ci`, `npm run verify`.
 2. Con cuenta Expo: `npx eas-cli@latest login`, `npx eas-cli@latest build:configure` y `npx eas-cli@latest build --platform android --profile preview`. Instalar el APK de ese build. No usar Expo Go para Health Connect.
 3. Alternativa con JDK 17 y Android SDK: `npm run prebuild:android`; `cd android`; `./gradlew assembleRelease`. El proyecto generado usa clave debug para pruebas locales; no publicar ese APK en Play Store. Configurar firma privada de producción con EAS para distribución comercial.
 4. Iniciar sin internet, activar sensor, caminar con la app abierta y reiniciar sin caminar: el total debe persistir sin crecer por reinicios. La primera lectura se usa como referencia y puede perder el primer paso.
