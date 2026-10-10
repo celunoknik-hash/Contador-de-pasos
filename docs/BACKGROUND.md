@@ -28,7 +28,13 @@ Pausar intenta recuperar primero el historial disponible y elimina la suscripci�
 
 `npm run verify`: 33 pruebas; lint y TypeScript. Tres pruebas nuevas ejecutan SQL real: cursor persiste tras reiniciar sin doble recompensa; intervalo nuevo tras pausa descarta lecturas obsoletas y separa días; fallo del ledger revierte cursor y actividad y permite reintento. Expo prebuild detecta y enlaza el módulo local.
 
-Compilación APK en GitHub Actions: verificar estado del commit de esta entrega antes de distribuir. Firma de pruebas, arm64, Android 9+.
+Compilación nativa **aprobada** en GitHub Actions: run `38017173095`, commit de código `d3e9c297a3b54f68a40ba94d1c3114871585c7e2`, `BUILD SUCCESSFUL in 10m 48s`. Verificación independiente run `38017173083` aprobada. Expo Doctor: 21/21; prebuild y exportación Android aprobados.
+
+APK `WalkWorld-0.2.0-android-arm64.apk`: 77.346.790 bytes; SHA-256 `b9691d61f5e9a5a4f9f94e15713fff8b2c1642c5fdda62e841affbf4521f6c62`. Artefacto GitHub `11657195418`, ZIP SHA-256 `044c5bb6b0554e199e6819970f567dcbc4b319766636164ecae5ace5c924186d`, cotejado al descargar.
+
+Firma APK v2 comprobada, certificado de pruebas idéntico a 0.1.0 (`fac61745dc0903786fb9ede62a962b399f7348f0bb6f899b8332667591033b9c`). Paquete `com.walkworld.mobile`, versionCode 2, minSdk 28, targetSdk 36, arm64. Puede actualizar el APK de pruebas 0.1.0 con versionCode 1 sin desinstalar. No es firma de producción para Play Store.
+
+Manifest inspeccionado: no se añadió ubicación en segundo plano ni permiso de servicio de primer plano o notificaciones. Permisos solicitados en contexto para actividad, HC y ubicación voluntaria como antes.
 
 ## Prueba Android pendiente
 
