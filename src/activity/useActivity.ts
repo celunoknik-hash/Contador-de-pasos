@@ -20,6 +20,7 @@ export function useActivity(repo: ActivityRepository) {
   const generation = useRef(0);
   const owner = repo.deviceId(() => { throw new Error('Identificador no disponible.'); });
   const inFlight = useRef(false);
+  const recordingFlight = useRef<Promise<void> | null>(null);
   const actionBusy = useRef(false);
   const settings = useRef(preferences);
   const alive = useRef(true);
@@ -53,11 +54,13 @@ export function useActivity(repo: ActivityRepository) {
     const timer = setInterval(() => { setTodayKey(dayKey()); }, 15000);
     return () => clearInterval(timer);
   }, []);
-  const refreshRecording = useCallback(async (includeHistory = true) => {
-    if (inFlight.current || AppState.currentState !== 'active' || !settings.current.enabled || settings.current.source !== 'sensor') return;
+  const refreshRecording = useCallback((includeHistory = true): Promise<void> => {
+    if (recordingFlight.current) return recordingFlight.current;
+    if (inFlight.current || AppState.currentState !== 'active' || !settings.current.enabled || settings.current.source !== 'sensor') return Promise.resolve();
     const token = generation.current;
     inFlight.current = true;
-    try {
+    const work = (async () => {
+      try {
       const epoch = await recording.start(owner);
       if (!alive.current || token !== generation.current || AppState.currentState !== 'active') return;
       repo.beginRecording(epoch);
@@ -79,8 +82,11 @@ export function useActivity(repo: ActivityRepository) {
         repo.recordRecording(day, total, settings.current.goal, epoch);
       }
       if (alive.current && token === generation.current) { setError(null); setStatus('Recording API activa · recupera pasos con la pantalla bloqueada'); reload(); }
-    } catch (e) { if (alive.current && token === generation.current) { setError(message(e)); setStatus('El registro en segundo plano necesita atención.'); } }
-    finally { inFlight.current = false; }
+      } catch (e) { if (alive.current && token === generation.current) { setError(message(e)); setStatus('El registro en segundo plano necesita atención.'); } }
+      finally { inFlight.current = false; recordingFlight.current = null; }
+    })();
+    recordingFlight.current = work;
+    return work;
   }, [owner, repo, reload]);
   useEffect(() => {
     let cancelled = false;
@@ -88,9 +94,13 @@ export function useActivity(repo: ActivityRepository) {
       // Stop collection on explicit pause, source change or switching to a disabled account.
       // No unsubscribe on background/unmount: that would discard the system's pending history.
       void recording.stop().catch(e => { if (!cancelled && alive.current && preferences.source === 'sensor') setError(message(e)); });
+    } else {
+      // Align ownership even if auth changes while the screen is locked.
+      void recording.start(owner).then(epoch => { if (!cancelled && alive.current) repo.beginRecording(epoch); })
+        .catch(e => { if (!cancelled && alive.current) setError(message(e)); });
     }
     return () => { cancelled = true; };
-  }, [preferences.enabled, preferences.source, owner]);
+  }, [preferences.enabled, preferences.source, owner, repo]);
   useEffect(() => {
     if (!preferences.enabled || !active) return;
     const refresh = preferences.source === 'sensor' ? refreshRecording : refreshHealth;
@@ -104,7 +114,10 @@ export function useActivity(repo: ActivityRepository) {
     try {
       const remoteToday=repo.remote()?.days.find(day=>day.date===dayKey());
       if(remoteToday && remoteToday.deviceId!==repo.deviceId(()=>{throw new Error('Identificador no disponible.');})) throw new Error('Hoy el registro pertenece a otro dispositivo. Usa ese dispositivo para seguir contando; aquí puedes consultar tu historial.');
-      if (source === 'health-connect') await connectHealth();
+      if (source === 'health-connect') {
+        if (settings.current.enabled && settings.current.source === 'sensor') { await refreshRecording(); await refreshRecording(); }
+        await connectHealth();
+      }
       else {
         if (Platform.OS !== 'android') throw new Error('Prueba el contador en un teléfono Android.');
         
@@ -129,7 +142,12 @@ export function useActivity(repo: ActivityRepository) {
       if (actionBusy.current) return;
       actionBusy.current = true; setBusy(true);
       try {
-        if (settings.current.source === 'sensor') { await refreshRecording(); await recording.stop(); }
+        if (settings.current.source === 'sensor') {
+          // Await any current read, then flush a complete history request before unsubscribing.
+          await refreshRecording(); await refreshRecording();
+          generation.current++;
+          await recording.stop();
+        }
         if (!alive.current) return;
         generation.current++;
         save({ ...settings.current, enabled: false });

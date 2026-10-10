@@ -81,8 +81,10 @@ class WalkWorldRecordingModule : Module() {
     }
     AsyncFunction("stop") { promise: Promise ->
       try {
-        if (storage().getString("owner", null) == null) {
-          promise.resolve()
+        if (storage().getString("owner", null) == null ||
+          (Build.VERSION.SDK_INT >= 29 && context().checkSelfPermission(Manifest.permission.ACTIVITY_RECOGNITION) != PackageManager.PERMISSION_GRANTED)) {
+          if (storage().edit().clear().commit()) promise.resolve()
+          else promise.reject("RECORDING_STORAGE", "No se pudo guardar la pausa.", null)
           return@AsyncFunction
         }
         client().unsubscribe(LocalDataType.TYPE_STEP_COUNT_DELTA)

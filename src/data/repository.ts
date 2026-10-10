@@ -91,23 +91,23 @@ export function createRepository(db: Pick<SQLiteDatabase, 'execSync' | 'getFirst
     db.runSync('UPDATE schema_version SET version=4');
   });
   const writeSensor = (date: string, delta: number, goal: number, anomaly: boolean) => {
-      if (!validDayKey(date)) throw new Error('Fecha de actividad no válida.');
-      if (!validGoal(goal)) throw new Error('Objetivo diario no válido.');
-      if (anomaly && delta !== 0) throw new Error('Una lectura anómala no puede generar pasos.');
-      if (!validTotal(delta)) throw new Error('Lectura de sensor no válida.');
-      if (delta === 0 && !anomaly) return;
+    if (!validDayKey(date)) throw new Error('Fecha de actividad no válida.');
+    if (!validGoal(goal)) throw new Error('Objetivo diario no válido.');
+    if (anomaly && delta !== 0) throw new Error('Una lectura anómala no puede generar pasos.');
+    if (!validTotal(delta)) throw new Error('Lectura de sensor no válida.');
+    if (delta === 0 && !anomaly) return;
 
-        const old = db.getFirstSync<DayRow>('SELECT * FROM activity_days WHERE date=?', date);
-        // Health Connect is authoritative for an already imported day. No cross-source summation.
-        if (old?.source === 'health-connect') return;
-        if (!validTotal((old?.steps ?? 0) + delta)) throw new Error('Se alcanzó el límite de validación diario.');
-        db.runSync(`INSERT INTO activity_days(date,steps,goal,source,partial,timezone,updated_at,anomalies)
+    const old = db.getFirstSync<DayRow>('SELECT * FROM activity_days WHERE date=?', date);
+    // Health Connect is authoritative for an already imported day. No cross-source summation.
+    if (old?.source === 'health-connect') return;
+    if (!validTotal((old?.steps ?? 0) + delta)) throw new Error('Se alcanzó el límite de validación diario.');
+      db.runSync(`INSERT INTO activity_days(date,steps,goal,source,partial,timezone,updated_at,anomalies)
           VALUES(?,?,?,'sensor',1,?,?,?) ON CONFLICT(date) DO UPDATE SET
           steps=activity_days.steps+excluded.steps, updated_at=excluded.updated_at,
           revision=activity_days.revision+1, anomalies=activity_days.anomalies+excluded.anomalies`,
           date, delta, goal, zone(), new Date().toISOString(), Number(anomaly));
-        db.runSync('INSERT INTO sync_days(date,revision) SELECT date,revision FROM activity_days WHERE date=? ON CONFLICT(date) DO UPDATE SET revision=excluded.revision', date);
-        reconcileRewards(date, (old?.steps ?? 0) < (old?.goal ?? goal) && (old?.steps ?? 0) + delta >= (old?.goal ?? goal));
+      db.runSync('INSERT INTO sync_days(date,revision) SELECT date,revision FROM activity_days WHERE date=? ON CONFLICT(date) DO UPDATE SET revision=excluded.revision', date);
+    reconcileRewards(date, (old?.steps ?? 0) < (old?.goal ?? goal) && (old?.steps ?? 0) + delta >= (old?.goal ?? goal));
 
   };
   return {
