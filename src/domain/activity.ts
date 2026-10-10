@@ -2,6 +2,7 @@ export type StepSource = 'sensor' | 'health-connect';
 export type ThemePreference = 'system' | 'light' | 'dark';
 export interface Preferences {
   name: string;
+  avatar: 'walker' | 'forest' | 'ocean' | 'mountain';
   goal: number;
   strideMeters: number;
   weightKg: number;
@@ -10,6 +11,7 @@ export interface Preferences {
   enabled: boolean;
 }
 export interface ActivityDay {
+  deviceId?: string;
   date: string;
   steps: number;
   goal: number;
@@ -21,7 +23,7 @@ export interface ActivityDay {
   anomalies: number;
 }
 export const defaults: Preferences = {
-  name: 'Explorador', goal: 5000, strideMeters: 0.7, weightKg: 70,
+  name: 'Explorador', avatar: 'walker', goal: 5000, strideMeters: 0.7, weightKg: 70,
   theme: 'system', source: 'sensor', enabled: false,
 };
 export function dayKey(date = new Date()): string {

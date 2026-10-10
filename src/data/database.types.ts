@@ -112,6 +112,27 @@ export type Database = {
         }
         Relationships: []
       }
+      explored_cells: {
+        Row: {
+          cell_id: string
+          discovered_at: string
+          grid_version: number
+          user_id: string
+        }
+        Insert: {
+          cell_id: string
+          discovered_at?: string
+          grid_version?: number
+          user_id: string
+        }
+        Update: {
+          cell_id?: string
+          discovered_at?: string
+          grid_version?: number
+          user_id?: string
+        }
+        Relationships: []
+      }
       preferences: {
         Row: {
           daily_goal: number
@@ -154,6 +175,27 @@ export type Database = {
           created_at?: string
           display_name?: string
           user_id?: string
+        }
+        Relationships: []
+      }
+      reward_state: {
+        Row: {
+          amount: number
+          reward_key: string
+          user_id: string
+          version: number
+        }
+        Insert: {
+          amount: number
+          reward_key: string
+          user_id: string
+          version: number
+        }
+        Update: {
+          amount?: number
+          reward_key?: string
+          user_id?: string
+          version?: number
         }
         Relationships: []
       }
@@ -212,7 +254,17 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      sync_walkworld: {
+        Args: {
+          p_cells: string[]
+          p_days: Json
+          p_device: string
+          p_edit_preferences: boolean
+          p_preferences: Json
+          p_user: string
+        }
+        Returns: Json
+      }
     }
     Enums: {
       [_ in never]: never
@@ -345,4 +397,3 @@ export const Constants = {
     Enums: {},
   },
 } as const
-

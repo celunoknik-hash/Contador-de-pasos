@@ -147,3 +147,29 @@ test('limited movement history never limits balance and the cached entitlements 
   assert.equal(repo.wallet().balance, (sqlite.prepare('SELECT SUM(delta) AS balance FROM local_coin_ledger').get() as { balance: number }).balance);
   sqlite.close();
 });
+
+test('first discovery and imported sectors award a single persistent entitlement',()=>{
+ const {sqlite,db}=database(); const repo=createRepository(db);
+ assert.equal(repo.discover('1:1'),true);assert.equal(repo.discover('1:1'),false);
+ repo.discover('2:1');assert.equal(repo.wallet().balance,10);
+ assert.equal(createRepository(db).wallet().balance,10);assert.equal(repo.cells().length,2);
+ assert.throws(()=>repo.discover('999999:1'));assert.equal(repo.cells().length,2);sqlite.close();
+});
+test('acknowledging an older upload preserves newer steps and preference edits',()=>{
+ const {sqlite,db}=database();const repo=createRepository(db);
+ repo.recordSensor('2026-09-01',100,5000,false);repo.savePreferences({...defaults,name:'Primero'});repo.discover('1:1');
+ const pending=repo.pending();repo.recordSensor('2026-09-01',100,5000,false);repo.savePreferences({...defaults,name:'Segundo'});
+ repo.acknowledge(pending.days,pending.cells,pending.preferenceRevision);
+ assert.equal(repo.pending().days[0].steps,200);assert.equal(repo.pending().cells.length,0);assert.equal(repo.pending().editPreferences,true);
+ const next=repo.pending();repo.acknowledge(next.days,next.cells,next.preferenceRevision);assert.equal(repo.pending().days.length,0);assert.equal(repo.pending().editPreferences,false);sqlite.close();
+});
+test('remote snapshots never generate local steps or coins, and device identity persists',()=>{
+ const {sqlite,db}=database();const repo=createRepository(db);const id=repo.deviceId(()=> 'test-device');
+ repo.saveRemote({days:[{date:'2026-09-01',steps:5000,goal:5000,source:'sensor',partial:true,timezone:'America/Santiago',updatedAt:new Date().toISOString(),revision:1,anomalies:0}],balance:75,cells:['1:1']});
+ assert.equal(repo.list().length,0);assert.equal(repo.wallet().balance,0);assert.equal(repo.remote()?.balance,75);assert.deepEqual(repo.cells(),['1:1']);assert.equal(createRepository(db).deviceId(()=> 'wrong'),id);sqlite.close();
+});
+test('separate repositories isolate guest and account history; import never sums days',()=>{
+ const a=database(),b=database();const guest=createRepository(a.db),account=createRepository(b.db);
+ guest.recordSensor('2026-09-01',5000,5000,false);assert.equal(account.list().length,0);
+ account.importGuest(guest.exportGuest());account.importGuest(guest.exportGuest());assert.equal(account.list()[0].steps,5000);assert.equal(account.wallet().balance,75);assert.equal(account.pending().days.length,1);a.sqlite.close();b.sqlite.close();
+});

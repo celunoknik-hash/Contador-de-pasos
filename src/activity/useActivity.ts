@@ -8,7 +8,8 @@ import { connectHealth, healthTotal } from './healthConnect';
 
 export function useActivity(repo: ActivityRepository) {
   const [preferences, setPreferences] = useState(repo.preferences);
-  const [days, setDays] = useState(repo.list);
+  const [days, setDays] = useState(()=>displayDays(repo));
+  const [cells, setCells] = useState(repo.cells);
   const [wallet, setWallet] = useState(repo.wallet);
   const [todayKey, setTodayKey] = useState(dayKey);
   const [status, setStatus] = useState(preferences.source === 'health-connect' ? 'Consultando pasos de Health Connect…' : 'Conectando sensor del teléfono…');
@@ -21,7 +22,7 @@ export function useActivity(repo: ActivityRepository) {
   const settings = useRef(preferences);
   const alive = useRef(true);
   useEffect(() => { alive.current = true; return () => { alive.current = false; watcher.current?.remove(); }; }, []);
-  const reload = useCallback(() => { if (alive.current) { setDays(repo.list()); setWallet(repo.wallet()); setTodayKey(dayKey()); } }, [repo]);
+  const reload = useCallback(() => { if (alive.current) { setDays(displayDays(repo)); setWallet(repo.wallet()); const p=repo.preferences(); settings.current=p; setPreferences(p); setCells(repo.cells()); setTodayKey(dayKey()); } }, [repo]);
   const save = useCallback((next: Preferences) => {
     repo.savePreferences(next); settings.current = next; setPreferences(next);
   }, [repo]);
@@ -67,6 +68,7 @@ export function useActivity(repo: ActivityRepository) {
         if (!await Pedometer.isAvailableAsync()) throw new Error('El teléfono no tiene un sensor de pasos disponible. Prueba Health Connect.');
         if (!(await Pedometer.getPermissionsAsync()).granted) throw new Error('Permiso de actividad no concedido. Actívalo desde Perfil.');
         if (cancelled) return;
+        if (repo.remote()?.days.some(day => day.date===dayKey() && day.deviceId!==repo.deviceId(()=>{throw new Error('Identificador no disponible.');}))) throw new Error('Hoy el registro pertenece a otro dispositivo. Consulta el progreso aquí y usa ese dispositivo para seguir contando.');
         if (repo.list().some(day => day.date === dayKey() && day.source === 'health-connect')) {
           throw new Error('Hoy ya usaste Health Connect. Para evitar mezclar fuentes, reconéctalo o usa el sensor desde mañana.');
         }
@@ -104,14 +106,22 @@ export function useActivity(repo: ActivityRepository) {
     } catch (e) { setError(message(e)); }
     finally { actionBusy.current = false; setBusy(false); }
   };
+  const remoteBalance=repo.remote()?.balance;
   const today: ActivityDay | undefined = days.find(day => day.date === todayKey);
-  return { preferences, days, today, todayKey, wallet, challenges: challengesFor(days, todayKey, preferences.goal), status: preferences.enabled ? status : 'Contador pausado. Actívalo para comenzar; tus datos permanecen guardados.', error, busy, save, enable,
+  return { preferences, days, today, todayKey, wallet, remoteBalance, cells, challenges: [...challengesFor(days, todayKey, preferences.goal), { id: 'first-sector', title: 'El primer descubrimiento', description: 'Descubre un sector durante una sesión de exploración. Recompensa única.', progress: cells.length ? 1 : 0, target: 1, reward: 10, completed: cells.length > 0, eligible: true }], status: preferences.enabled ? status : 'Contador pausado. Actívalo para comenzar; tus datos permanecen guardados.', error, busy, save, enable,
     pause: () => {
       watcher.current?.remove(); watcher.current = null;
       try { save({ ...settings.current, enabled: false }); }
       catch { setError('No se pudo guardar la pausa. Revisa el espacio disponible.'); }
     },
-    refresh: refreshHealth,
+    refresh: refreshHealth, reload,
   };
 }
 function message(error: unknown) { return error instanceof Error ? error.message : 'No se pudo leer la actividad. Inténtalo nuevamente.'; }
+
+function displayDays(repo:ActivityRepository):ActivityDay[] {
+  const days=new Map(repo.list().map(day=>[day.date,day]));
+  const id=repo.deviceId(()=> {throw new Error('Identificador no inicializado.');});
+  for(const day of repo.remote()?.days ?? []) { const local=days.get(day.date); if(!local || day.deviceId!==id || day.revision>=local.revision) days.set(day.date,day); }
+  return [...days.values()].sort((a,b)=>b.date.localeCompare(a.date));
+}

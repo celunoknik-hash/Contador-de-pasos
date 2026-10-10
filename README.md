@@ -2,77 +2,14 @@
 
 **Cada paso cuenta. Camina, explora y construye tu mundo.**
 
-Aplicación móvil independiente en español, desarrollada con Expo, React Native y TypeScript. Android es la plataforma inicial. Versión 0.1.0: Fase 1 y gamificación local de Fase 2 implementadas; la validación física y compilación del APK siguen pendientes.
+Aplicación Android con Expo 57, React Native, TypeScript, SQLite y Supabase. Contador real en primer plano, importación Health Connect, WalkCoins, cinco desafíos, historial, exploración GPS voluntaria y cuentas con sincronización privada.
 
-## Implementado
+Estado e instrucciones actuales: [Entrega del MVP](docs/MVP.md). [Pruebas](docs/TESTING.md), [arquitectura](docs/ARCHITECTURE.md), [Supabase](docs/SUPABASE.md). Las pruebas físicas y la configuración SMTP siguen pendientes; no se promete contar con la app cerrada.
 
-- Sensor real del teléfono mientras la app está abierta; activación voluntaria, disponibilidad y permisos.
-- Adaptador Health Connect de solo lectura de pasos, conciliación de totales diarios y recuperación de últimos siete días.
-- Objetivo configurable, porcentaje, distancia y calorías aproximadas.
-- SQLite sin internet, historial y gráfico de siete días. Controles contra lecturas anómalas y duplicados.
-- Perfil local, preferencias persistentes y modo claro/oscuro/sistema.
-- Cinco pestañas y áreas seguras superior/inferior. Explorar explica su fase pendiente.
-- WalkCoins locales, cuatro desafíos verificables, bono de racha, logros e historial de movimientos sin duplicados. Reglas y limitaciones: [docs/PHASE2.md](docs/PHASE2.md).
-- Configuración EAS para APK de pruebas y AAB de producción, y explicación de permisos de Health Connect nativa y sin conexión.
-
-**No implementado todavía:** recompensas sobre Health Connect, desafío geográfico, mapa/GPS, cuentas en el móvil, sincronización, eliminación de cuenta en nube y pagos. La base independiente de Supabase ya tiene seis tablas con RLS y pruebas SQL aprobadas; la app todavía no envía datos a ella. Estado y contrato: [docs/SUPABASE.md](docs/SUPABASE.md).
-
-## Instalar y verificar
-
-Requisitos: Node.js 24 y npm. La versión de Node importa: los tests de persistencia ejecutan SQL real con `node:sqlite`.
-
-```bash
+```sh
 npm ci
 npm run verify
-npm run prebuild:android
-npm run bundle:android
-```
-
-Resultados de esta entrega y matriz de teléfono: [docs/TESTING.md](docs/TESTING.md). Arquitectura, módulos y limitaciones: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
-
-## Probar en Android
-
-### APK completo con Health Connect
-
-Se necesita una cuenta Expo/EAS. Desde una copia del repositorio:
-
-```bash
-npx eas-cli@latest login
-npx eas-cli@latest build:configure
 npx eas-cli@latest build --platform android --profile preview
 ```
 
-La configuración inicial puede añadir `extra.eas.projectId` y asociar el proyecto a tu cuenta. Usa el nombre WalkWorld y conserva `com.walkworld.mobile` como paquete. No guardes tokens ni contraseñas en el repositorio. EAS puede tener cuotas/colas según tu plan. Al finalizar una compilación exitosa, descarga su APK e instálalo en un teléfono Android; el perfil preview incluye el JavaScript y funciona sin Metro.
-
-### Compilación local
-
-Con Android Studio, JDK 17 y SDK/NDK compatibles con el proyecto:
-
-```bash
-npm ci
-npm run android
-```
-
-Este comando crea e instala una compilación de desarrollo y requiere un teléfono por USB con depuración habilitada o un emulador. Un emulador no valida que el sensor físico funcione.
-
-### Expo Go
-
-```bash
-npm start
-```
-
-Expo Go compatible con este SDK permite una prueba limitada del sensor en primer plano y la interfaz. **Health Connect no funciona dentro de Expo Go**; el botón mostrará esa limitación. La app requiere Android y un sensor compatible. No confundir la vista en Expo Go con una compilación Android validada.
-
-## Primera caminata
-
-1. Abre Inicio y pulsa **Activar sensor del teléfono**. Concede actividad física cuando Android lo solicite.
-2. La primera lectura establece la referencia, sin añadir pasos. Camina con la app abierta y observa el progreso. Reiniciar no debe sumar pasos por sí solo.
-3. Perfil permite guardar nombre, objetivo, longitud de paso, peso estimado y apariencia. Progreso muestra los registros reales guardados.
-4. Para recuperar registros externos, pulsa **Conectar Health Connect** en un APK. Concede solo lectura de pasos. Debe existir una fuente que produzca pasos en Health Connect o un dispositivo con conteo integrado compatible.
-5. Health Connect reemplaza el total parcial del sensor; puede bajar si contiene menos datos. No se suman fuentes. No se permite volver al sensor el mismo día ya importado de Health Connect.
-
-## Limitaciones importantes
-
-El sensor de Expo no es seguimiento en segundo plano. El adaptador Health Connect lee datos existentes al volver a la app; no prueba que otro productor registre pasos con la app cerrada. No se ha comprobado aún cierre forzado, reinicio del teléfono, consumo de batería o precisión en un teléfono físico.
-
-No se utilizan datos falsos ni GPS. Los controles iniciales no equivalen a un antifraude comercial. No hay claves de Supabase ni credenciales empaquetadas. Los datos y monedas son locales; cuentas y nube se implementarán en su fase. El saldo de pruebas no está validado por un servidor. Health Connect no genera recompensas todavía: su agregación actual no distingue registros manuales de automáticos. Conectarlo puede retirar las monedas del día que sustituye.
+No hay actividad ficticia, pagos ni monedas convertibles en dinero. Android 9+; Health Connect depende del soporte del dispositivo y de una fuente que registre pasos. Expo Go no incluye esa integración nativa.

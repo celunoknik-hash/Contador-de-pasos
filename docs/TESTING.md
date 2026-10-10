@@ -1,28 +1,6 @@
-# Verificación de Fase 1
+# Pruebas del MVP — 10 de octubre de 2026
 
-Fecha: 9 de octubre de 2026. Entorno de código: Linux, Node 24.19.0. No hay un teléfono Android conectado, JDK ni Android SDK en este entorno; no se afirma haber probado sensores físicos ni generado un APK.
-
-## Resultados automáticos
-
-| Comprobación | Resultado |
-|---|---|
-| ESLint `npm run lint` | Sin errores |
-| TypeScript `npm run typecheck` | Sin errores |
-| Tests `npm test` | 9 aprobados, 0 fallidos |
-| Persistencia | Producción SQL ejecutado en SQLite real; preferencias y pasos sobreviven al reabrir el repositorio |
-| Primera lectura Android | Se descarta como referencia; no emite un paso al abrir la app |
-| Eventos repetidos/reinicio de suscripción | No añaden de nuevo el acumulado |
-| Cambio de día | Descarta lote ambiguo de medianoche y continúa con referencia nueva |
-| Anomalías | Saltos, fracciones, negativos y contador decreciente rechazados |
-| Health Connect | Instantánea idéntica no cambia total/revisión; reemplaza sensor; acepta correcciones hacia abajo |
-| Calendario de Chile | Ventana de 23 horas en cambio de horario de verano, sin asumir días de 24 h |
-| Dependencias Expo | Coinciden con las versiones del catálogo instalado; check offline informa que su validación es limitada |
-| `expo prebuild --platform android --no-install` | Exitoso; genera proyecto Android y actividad de privacidad |
-| Manifest generado | Lectura de pasos y actividad física; permisos de GPS/cámara/micrófono/almacenamiento/overlay/vibración bloqueados |
-| Rationale/alias Health Connect | Alias Android 14 apunta a `WalkWorldPrivacyActivity`; Android anterior tiene acción en esa actividad, no en Inicio |
-| `expo export --platform android` | Bundle Hermes Android generado correctamente |
-
-Prebuild y export verifican la generación nativa y el bundle JavaScript. **No compilan el código Kotlin/Gradle ni validan librerías en un dispositivo.** La primera compilación EAS o local deberá comprobar esa compatibilidad.
+Resultados actuales: [MVP.md](MVP.md). Lint/TypeScript y 27 pruebas de lógica/SQLite real pasan; Edge Function pasa deno check, API sin token devuelve 401, pruebas SQL transaccionales pasan y advisors no detectan incidencias. Prebuild y bundle Hermes pasan. Ninguna prueba física está completada.
 
 ## Matriz de pruebas físicas pendientes
 
@@ -47,16 +25,5 @@ En cada prueba registrar modelo, versión Android, versión Health Connect, orig
 | Tema claro/oscuro/sistema | Legibilidad y preferencia persistente | Pendiente |
 | 30 minutos y 24 h de uso | Medir batería, no atribuir lecturas a temporizadores en segundo plano | Pendiente |
 
-## Próxima etapa
 
-Fase 2 ya implementa saldo y retos locales de pruebas; requiere validar el contador en un teléfono antes de publicación comercial. No hay recompensas de Health Connect ni mapa funcional. Ver `PHASE2.md`.
-
-## Base de Supabase (preparación de Fase 4)
-
-Se desplegó la migración `walkworld_core` en el proyecto independiente WalkWorld y se ejecutó `supabase/tests/access.sql` en una sola transacción: PASS. Comprueba aislamiento de dos identidades, permisos de invitado, ediciones propias/ajenas, reasignación de propietario, objetivos inválidos y unicidad del ledger. ROLLBACK elimina todos los fixtures; las seis tablas quedaron vacías. Advisors de seguridad sin incidencias.
-
-Esto valida las políticas SQL, no un login del móvil ni sincronización de extremo a extremo: ambas funciones y su validación Android siguen pendientes. Ver [SUPABASE.md](SUPABASE.md).
-
-## Fase 2 — resultados actuales
-
-Lint y TypeScript sin errores; 19 tests aprobados, incluyendo los nueve originales. Se comprobaron límite diario, bonos, reinicios, migración, rachas, ajustes negativos por fuente, rollback ante fallo del ledger y saldo completo con historial visible limitado. Prebuild y exportación Android exitosos. Sin APK generado ni pruebas físicas; matriz Android y pasos específicos: [PHASE2.md](PHASE2.md).
+Añadir: descubrir sectores caminando, denegar ubicación, salir de Explorar y verificar detención GPS, señal imprecisa/saltos, persistencia de sectores, registro/confirmación/recuperación, login offline, importación explícita de invitado, cola al reconectar, dos cuentas sin mezcla, dos dispositivos sin sumar y eliminación por cascada. Todo pendiente en Android físico.
